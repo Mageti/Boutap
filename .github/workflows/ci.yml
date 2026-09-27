@@ -1,0 +1,263 @@
+# SPDX-FileCopyrightText: Boutap contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Boutap — Intégration continue.
+#
+# Trois idées derrière ce fichier :
+#   1. La CI vérifie les CINQ règles de code de wiki: spec.md §7.3. Pas
+#      « au moins un test qui passe » : les règles elles-mêmes.
+#   2. Linux ET Windows sur chaque PR. Le projet promet la parité stricte ;
+#      une CI qui ne teste qu'un seul système rend cette promesse invérifiable.
+#   3. Aucun test qui ment. Un test instable est marqué Skip avec un motif
+#      écrit, jamais « on le désactive ».
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Une PR n'est pas annulée par un nouveau push : ça évite de consommer
+# des minutes pour rien quand quelqu'un pousse cinq fois de suite.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  GODOT_VERSION: '4.3-stable'
+  # Le dossier de travail des tests, isolé pour ne pas salir le dépôt.
+  TEST_TMP: ${{ github.workspace }}/.tmp-tests
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Vérifications statiques — rapides, sans .NET, sur les deux systèmes.
+  # ---------------------------------------------------------------------------
+  static:
+    name: Vérifications statiques (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Aucun caractère parasite
+        run: python3 scripts/check-mojibake.py
+
+      - name: Règle R1 — aucune horloge murale
+        shell: bash
+        run: ./scripts/check-no-wallclock.sh
+
+      - name: En-têtes de licence SPDX
+        shell: bash
+        run: ./scripts/check-licenses.sh
+
+      - name: Format et fins de ligne
+        shell: bash
+        run: ./scripts/check-format.sh
+
+      - name: JSON valide (schémas et profils)
+        shell: bash
+        run: |
+          for f in schema/*.json profiles/*.json; do
+            python3 -c "import json,sys;json.load(open(sys.argv[1],encoding='utf-8'))" "$f" \
+              || { echo "::error file=$f::JSON invalide"; exit 1; }
+          done
+
+      - name: Les 5 profils livrés sont présents
+        shell: bash
+        run: |
+          missing=0
+          for p in default-9 popn-keyboard popn-gamepad kboard-9 dev-generic; do
+            [ -f "profiles/$p.json" ] || { echo "::error::profil manquant : $p"; missing=1; }
+          done
+          exit $missing
+
+  # ---------------------------------------------------------------------------
+  # 2. Compilation et tests .NET — le cœur.
+  # ---------------------------------------------------------------------------
+  test:
+    name: Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          cache: true
+          cache-dependency-path: '**/*.csproj'
+
+      - name: Restaurer
+        run: dotnet restore
+
+      - name: Construire (Release)
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Tests unitaires
+        shell: bash
+        run: |
+          mkdir -p "$TEST_TMP"
+          dotnet test --configuration Release --no-build \
+            --collect:"XPlat Code Coverage" \
+            --results-directory "$TEST_TMP" \
+            --logger "trx;LogFileName=tests.trx"
+
+      - name: Rapport de couverture
+        if: always()
+        shell: pwsh
+        run: |
+          $cov = Get-ChildItem -Recurse -Filter coverage.cobertura.xml "$env:TEST_TMP" | Select-Object -First 1
+          if ($cov) {
+            [xml]$x = Get-Content $cov.FullName
+            $line = $x.coverage.'line-rate'
+            "Couverture de lignes : {0:N1} %" -f ($line * 100)
+            "Taux au-dessus du seuil de 60 % : $($line -ge 0.6)"
+          } else {
+            "Aucun rapport de couverture produit."
+          }
+
+      - name: Publier le rapport en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}
+          path: ${{ env.TEST_TMP }}
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # 3. Export Godot — vérifie que le jeu se construit pour les 4 cibles.
+  # ---------------------------------------------------------------------------
+  export:
+    name: Export Godot (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: [static]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Installer Godot ${{ env.GODOT_VERSION }}
+        shell: bash
+        env:
+          GODOT_RELEASE: ${{ env.GODOT_VERSION }}
+        run: |
+          set -euo pipefail
+          base="https://github.com/godotengine/godot/releases/download"
+          if [ "${RUNNER_OS}" = "Linux" ]; then
+            url="$base/${GODOT_RELEASE%/*}-stable/Godot_v${GODOT_RELEASE%/*}-stable_linux.x86_64.zip"
+            dest="$HOME/godot.zip"
+          else
+            url="$base/${GODOT_RELEASE%/*}-stable/Godot_v${GODOT_RELEASE%/*}-stable_win64.exe.zip"
+            dest="$HOME/godot.zip"
+          fi
+          wget -q -O "$dest" "$url"
+          unzip -q -o "$dest" -d "$HOME/godot"
+          binary=$(find "$HOME/godot" -type f -name 'Godot*' -size +10M | head -1)
+          echo "GODOT_BIN=$binary" >> "$GITHUB_ENV"
+          "$binary" --version
+
+      - name: Exporter les cibles
+        shell: bash
+        run: |
+          set -euo pipefail
+          for preset in linux-x86_64 linux-arm64 windows-x86_64 portable-windows; do
+            "$GODOT_BIN" --headless --path . --export-release "$preset" \
+              || { echo "::error::export '$preset' en échec"; exit 1; }
+          done
+
+      - name: Taille des artefacts
+        shell: bash
+        run: |
+          for d in build/*/; do
+            [ -d "$d" ] || continue
+            size=$(du -sh "$d" | cut -f1)
+            echo "$d : $size"
+          done
+
+      - name: Publier les artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: exports-${{ matrix.os }}
+          path: build/
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # 4. Audit des assets — licences, marques, fichiers de jeu tiers.
+  # ---------------------------------------------------------------------------
+  assets:
+    name: Audit des assets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Construire l'outil en ligne de commande
+        run: dotnet build src/Boutap.Tools/Boutap.Tools.csproj --configuration Release
+
+      - name: Audit du dépôt
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --project src/Boutap.Tools --configuration Release -- audit --warn .
+
+      - name: Registre des assets tiers complet
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in assets fonts packs; do
+            [ -d "$d" ] || continue
+            for f in "$d"/*; do
+              [ -e "$f" ] || continue
+              name=$(basename "$f")
+              grep -q "$name" THIRD_PARTY_ASSETS.md \
+                || { echo "::error file=$f::absent de THIRD_PARTY_ASSETS.md"; exit 1; }
+            done
+          done
+          echo "Registre complet."
+
+  # ---------------------------------------------------------------------------
+  # 5. Le contrôle final, qui doit être vert pour merger.
+  # ---------------------------------------------------------------------------
+  gate:
+    name: Porte de fusion
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [static, test, export, assets]
+    steps:
+      - name: Vérifier tous les jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "static   : ${{ needs.static.result }}"
+          echo "test     : ${{ needs.test.result }}"
+          echo "export   : ${{ needs.export.result }}"
+          echo "assets   : ${{ needs.assets.result }}"
+          for job in static test export assets; do
+            if [ "${{ needs.$job.result }}" != "success" ]; then
+              echo "::error::le job '$job' n'a pas réussi"
+              exit 1
+            fi
+          done
+          echo "Porte ouverte."

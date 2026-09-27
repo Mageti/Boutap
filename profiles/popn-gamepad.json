@@ -1,0 +1,26 @@
+{
+  "profile": "1.0",
+  "name": "popn-gamepad",
+  "description": "Clone de manette pop'n 9 boutons et 2 volants, exposé en mode MANETTE : les 9 boutons sur les boutons 1 à 9 de la manette, les 2 volants sur les deux premiers axes. C'est le profil qui respecte le matériel réel : les axes des volants sont analogiques, donc les notes de volant sont jouables avec une vraie finesse de geste.",
+  "notes": "Boutons numérotés 1 à 9, axes X (JoyAxis0) et Y (JoyAxis1) pour les volants gauche et droit. L'ordre des boutons 1 à 9 correspond à l'ordre de la grille 3×3, ligne par ligne. L'inversion des axes est détectée au chargement et proposée, jamais appliquée en silence : certains pilotes d'axes ont une convention opposée. Si le joueur trouve que les volants tournent à l'envers, il inverse dans l'éditeur.",
+  "latency_ms": 0,
+  "buttons": {
+    "T0": { "type": "gamepad_button", "code": "JoyButton0" },
+    "T1": { "type": "gamepad_button", "code": "JoyButton1" },
+    "T2": { "type": "gamepad_button", "code": "JoyButton2" },
+    "T3": { "type": "gamepad_button", "code": "JoyButton3" },
+    "T4": { "type": "gamepad_button", "code": "JoyButton4" },
+    "T5": { "type": "gamepad_button", "code": "JoyButton5" },
+    "T6": { "type": "gamepad_button", "code": "JoyButton6" },
+    "T7": { "type": "gamepad_button", "code": "JoyButton7" },
+    "T8": { "type": "gamepad_button", "code": "JoyButton8" },
+
+    "WHEEL_L": { "type": "gamepad_button", "code": "JoyButton9" },
+    "WHEEL_R": { "type": "gamepad_button", "code": "JoyButton10" }
+  },
+  "wheels": {
+    "L": { "type": "axis", "code": "JoyAxis0", "invert": false, "deadzone": 0.06, "smoothing": 0.25, "trigger": 1.2 },
+    "R": { "type": "axis", "code": "JoyAxis1", "invert": false, "deadzone": 0.06, "smoothing": 0.25, "trigger": 1.2 }
+  },
+  "players": 2
+}

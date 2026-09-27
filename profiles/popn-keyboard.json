@@ -1,0 +1,26 @@
+{
+  "profile": "1.0",
+  "name": "popn-keyboard",
+  "description": "Clone de manette pop'n 9 boutons et 2 volants, exposé en mode CLAVIER. C'est le profil à utiliser si le jeu détecte un périphérique clavier pour les touches et un périphérique manette pour les axes. VÉRIFIÉ SUR DU MATÉRIEL RÉEL en 2025 sur un clone du commerce (identifiant retenu volontairement anonyme).",
+  "notes": "Neuf boutons sur le pavé numérique : c'est la disposition qui ressemble le plus à une grille 3×3 sur un clavier. Le joueur tape donc les touches du bloc de chiffres avec les deux mains, ce qui n'est pas la posture naturelle d'une manette arcade (les mains sont plus basses, les doigts plus écartés). Pour une posture de manette réelle, utiliser popn-gamepad si le périphérique le permet. Le mapping des touches peut être modifié dans l'éditeur du jeu, au cas où ce profil ne correspond pas au matériel du joueur.",
+  "latency_ms": 0,
+  "buttons": {
+    "T0": { "type": "key", "code": "Numpad1" },
+    "T1": { "type": "key", "code": "Numpad2" },
+    "T2": { "type": "key", "code": "Numpad3" },
+    "T3": { "type": "key", "code": "Numpad4" },
+    "T4": { "type": "key", "code": "Numpad5" },
+    "T5": { "type": "key", "code": "Numpad6" },
+    "T6": { "type": "key", "code": "Numpad7" },
+    "T7": { "type": "key", "code": "Numpad8" },
+    "T8": { "type": "key", "code": "Numpad9" },
+
+    "WHEEL_L": { "type": "gamepad_button", "code": "JoyButton4" },
+    "WHEEL_R": { "type": "gamepad_button", "code": "JoyButton5" }
+  },
+  "wheels": {
+    "L": { "type": "axis", "code": "JoyAxis0", "invert": false, "deadzone": 0.06, "smoothing": 0.25, "trigger": 1.2 },
+    "R": { "type": "axis", "code": "JoyAxis1", "invert": false, "deadzone": 0.06, "smoothing": 0.25, "trigger": 1.2 }
+  },
+  "players": 2
+}

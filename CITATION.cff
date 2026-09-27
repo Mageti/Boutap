@@ -1,0 +1,58 @@
+# SPDX-FileCopyrightText: Boutap contributors
+# SPDX-License-Identifier: CC0-1.0
+#
+# Métadonnées de citation (https://citation-file-format.github.io/).
+# Elles décrivent CE DOCUMENT, pas le logiciel Boutap.
+# Pour citer une version précise du logiciel, utilisez le tag Git correspondant.
+
+cff-version: 1.2.0
+
+message: >-
+  Si vous utilisez cette spécification (conception, algorithmes, format) dans
+  un travail scientifique ou d'ingénierie, merci de la citer. Pour citer le
+  logiciel lui-même, référez-vous au tag Git de la version utilisée.
+
+title: >-
+  Boutap — Spécification d'un jeu de rythme libre à neuf touches et deux
+  volants, avec générateur automatique de partitions
+
+abstract: >-
+  Spécification complète d'un jeu de rythme open source, jouable sur clavier et
+  sur manette à neuf boutons et deux volants, dont le cœur est un générateur
+  déterministe qui transforme un fichier audio (MP3, OGG, Opus, WAV) en une
+  partition jouable et annotée. Le document couvre la mécanique de jeu, le
+  pipeline d'analyse et de composition du générateur (enveloppe d'onsets,
+  détection de tempo par programmation dynamique, détection de tonalité, pliage
+  chromatique 12 vers 9 classes, simulation de joueur, courbe de charge), le
+  format de pack ouvert .btp, l'architecture logicielle, la gestion de la
+  latence audio, et seize modes d'accessibilité conçus pour la dyslexie.
+  Le document discute également du cadre juridique d'un projet de clone de jeu
+  de rythme, en distinguant la méthode, qui est libre, de l'expression, qui est
+  protégée.
+
+
+type: software
+
+version: 0.0.0-prealpha
+
+license: AGPL-3.0-or-later
+
+repository-code: 'https://github.com/<votre-org>/boutap'
+
+keywords:
+  - rhythm-game
+  - generative-algorithm
+  - beat-tracking
+  - dynamic-programming
+  - chroma
+  - accessibility
+  - dyslexia
+  - godot
+  - gpl
+  - fr
+
+authors:
+  - name: Boutap contributors
+
+# Documentation et spécification sous CC-BY-4.0 en alternative, au choix du
+# lecteur. Voir l'en-tête de wiki: spec.md.

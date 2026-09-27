@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/boutap/schema/manifest.schema.json",
+  "title": "Manifeste de pack Boutap (.btp)",
+  "description": "Décrit le contenu d'un pack .btp : une piste audio et une ou plusieurs partitions. Fichier sérialisé en JSONC (les commentaires sont tolérés à la lecture, interdits à l'écriture). Les règles sémantiques (tri des notes, cohérence des totaux, recalcul du SHA-256) sont appliquées par `boutap audit` et ne sont PAS exprimables ici : voir wiki: format.md.",
+
+  "type": "object",
+  "required": [
+    "schema",
+    "id",
+    "title",
+    "audio",
+    "analysis",
+    "generator",
+    "charts",
+    "content_license",
+    "min_player_version"
+  ],
+
+  "additionalProperties": false,
+
+  "properties": {
+    "schema": {
+      "description": "Identifiant de ce schéma, sert de garde-fou si le format évolue.",
+      "const": "boutap/pack-manifest/1"
+    },
+
+    "id": {
+      "description": "Identifiant stable du morceau. Minuscules, chiffres, tirets et tirets bas uniquement. Sert de nom de fichier et de clé dans la bibliothèque : il ne change pas si le titre change.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{2,63}$"
+    },
+
+    "title": {
+      "description": "Titre affiché dans la bibliothèque.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+
+    "artist": {
+      "description": "Artiste ou source. Vide si inconnu.",
+      "type": "string",
+      "maxLength": 200,
+      "default": ""
+    },
+
+    "audio": { "$ref": "#/$defs/audio" },
+
+    "analysis": { "$ref": "#/$defs/analysis" },
+
+    "generator": { "$ref": "#/$defs/generator" },
+
+    "charts": {
+      "description": "Une entrée par niveau présent dans le pack. Au moins un : un pack sans partition n'a rien à faire dans la bibliothèque.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": { "$ref": "#/$defs/chartEntry" }
+    },
+
+    "content_license": {
+      "description": "Licence du CONTENU (audio, artwork, texte), pas du code. Expression SPDX. `boutap audit` applique une liste blanche : CC0-1.0, CC-BY-4.0, ODbL-1.0 sont acceptés ; CC-BY-SA-4.0 est accepté avec un avertissement ; toute autre valeur est refusée.",
+      "type": "string",
+      "examples": ["CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "ODbL-1.0"]
+    },
+
+    "min_player_version": {
+      "description": "Version minimale du lecteur capable de jouer ce pack. Le lecteur refuse le pack au lieu de mal le jouer.",
+      "$ref": "#/$defs/semver"
+    }
+  },
+
+  "$defs": {
+
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$"
+    },
+
+    "sha256": {
+      "description": "SHA-256 de l'audio DÉCODÉ, en minuscules, 64 caractères. Jamais celui du fichier conteneur : deux fichiers mp3 différents peuvent produire exactement le même son.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+
+    "key": {
+      "description": "Tonalité détectée : racine en majuscules + mode. `C`, `F#m`, `Bb`, `Ebm`…",
+      "type": "string",
+      "pattern": "^[A-G](#|b)?(maj|min|m|dim|aug)?$"
+    },
+
+    "level": {
+      "description": "Identifiant du niveau. Les trois niveaux de la V1 sont fixes ; d'autres valeurs sont acceptées pour l experimenting, à condition d'être en minuscules.",
+      "type": "string",
+      "enum": ["berceau", "ronde", "cascade"]
+    },
+
+    "audio": {
+      "type": "object",
+      "required": ["path", "sha256", "duration_seconds", "pre_skip_seconds", "gapless_metadata"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "Chemin de l'audio À L'INTÉRIEUR du pack, séparateur `/`, jamais `..`, jamais absolu, jamais un lien symbolique.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"
+        },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "duration_seconds": {
+          "description": "Durée de l'audio décodé, après retrait du pré-silence du décodeur.",
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 3600
+        },
+        "pre_skip_seconds": {
+          "description": "Nombre de secondes à sauter au début du flux décodé, issu des métadonnées gapless. Vaut 0 si le format n'en fournit pas. Le lecteur saute APRÈS avoir mesuré, pour que les temps des notes soient rapportés au premier échantillon réellement audible.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "gapless_metadata": {
+          "description": "Source du réglage gapless. `unknown` signifie que le fichier en a fourni une qu'on n'a pas su interpréter : le lecteur signale une incertitude de ±51 ms.",
+          "type": "string",
+          "enum": ["xing", "itun-smpb", "vbri", "unknown", "none"]
+        }
+      }
+    },
+
+    "analysis": {
+      "description": "Ce que l'analyse du générateur a compris du morceau. Sert à afficher « 128 BPM, La mineur » dans la bibliothèque et à vérifier que le tempo annoncé est plausible. Peut être absent pour un pack écrit à la main.",
+      "type": "object",
+      "required": ["duration_seconds"],
+      "additionalProperties": false,
+      "properties": {
+        "bpm": {
+          "description": "Tempo global détecté, en battements par minute.",
+          "type": "number",
+          "minimum": 20,
+          "maximum": 400
+        },
+        "bpm_confidence": {
+          "description": "Confiance entre 0 et 1. En dessous de 0,5, la bibliothèque affiche un « ? » au lieu du nombre : mieux vaut un doute qu'un mensonge.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "key": { "$ref": "#/$defs/key" },
+        "key_confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "duration_seconds": {
+          "description": "Doit correspondre à `audio.duration_seconds` à 5 ms près.",
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 3600
+        }
+      }
+    },
+
+    "generator": {
+      "description": "Ce qui a produit la partition. Obligatoire : sans ça, on ne peut ni reproduire le résultat, ni savoir s'il faut regenerer après une correction d'algorithme.",
+      "type": "object",
+      "required": ["name", "version", "params", "seed"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "version": { "$ref": "#/$defs/semver" },
+        "params": {
+          "description": "Paramètres du générateur, tels qu'il les a reçus sur la ligne de commande. Objet libre : c'est la trace, pas un contrat.",
+          "type": "object"
+        },
+        "seed": {
+          "description": "Graine du générateur pseudo-aléatoire, en entier non signé sur 64 bits. Dérivée du contenu décodé de l'audio, jamais du nom du fichier : renommer un morceau ne doit pas changer sa partition.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        }
+      }
+    },
+
+    "chartEntry": {
+      "type": "object",
+      "required": ["level", "file", "note_count", "duration_seconds"],
+      "additionalProperties": false,
+      "properties": {
+        "level": { "$ref": "#/$defs/level" },
+        "file": {
+          "description": "Chemin de la partition À L'INTÉRIEUR du pack, sous `charts/`, extension `.json`.",
+          "type": "string",
+          "pattern": "^charts/[a-z0-9_-]+\\.json$"
+        },
+        "nps": {
+          "description": "Notes par seconde, calculé sur la fenêtre glissante d'UNE SECONDE la plus dense du morceau. C'est une mesure de pointe, pas une moyenne : c'est elle qui dit si un morceau est jouable.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 30
+        },
+        "peak_load": {
+          "description": "Pic de charge de la courbe SRC, la même unité que dans la partition. Doit pouvoir être recalculé.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "note_count": {
+          "description": "Nombre de notes RÉELLEMENT présentes dans le fichier. Le lecteur refuse le pack si ce nombre ment : c'est le contrôle le plus simple contre un manifeste bricolé.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        },
+        "duration_seconds": {
+          "description": "Durée couverte par la partition, à partir de l'instant 0 de l'audio. Peut dépasser la durée de l'audio d'une demi-seconde de tolérance, jamais plus.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 3600.5
+        },
+        "rating": {
+          "description": "Difficulté perçue de 1 à 20, échelle du jeu. Absente pour une partition écrite à la main.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        }
+      }
+    }
+  }
+}

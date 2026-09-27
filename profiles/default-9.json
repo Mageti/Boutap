@@ -1,0 +1,26 @@
+{
+  "profile": "1.0",
+  "name": "default-9",
+  "description": "Neuf touches sur un clavier AZERTY ou QWERTY, sans volant. Le profil par défaut : si un joueur n'a rien configuré, il joue avec celui-là.",
+  "notes": "AZERTY : les chiffres de la rangée du haut. QWERTY : les lettres U, I, O / J, K, L. Les deux jeux sont déclarés ici et choisis automatiquement selon la disposition détectée par le système.",
+  "latency_ms": 0,
+  "buttons": {
+    "T0": { "type": "key", "code": "BracketLeft" },
+    "T1": { "type": "key", "code": "KeyA" },
+    "T2": { "type": "key", "code": "KeyQ" },
+    "T3": { "type": "key", "code": "KeyW" },
+    "T4": { "type": "key", "code": "KeyS" },
+    "T5": { "type": "key", "code": "KeyE" },
+    "T6": { "type": "key", "code": "KeyD" },
+    "T7": { "type": "key", "code": "KeyR" },
+    "T8": { "type": "key", "code": "KeyF" },
+
+    "WHEEL_L": { "type": "key", "code": "KeyZ" },
+    "WHEEL_R": { "type": "key", "code": "KeyX" }
+  },
+  "wheels": {
+    "L": { "type": "key", "code": "KeyZ" },
+    "R": { "type": "key", "code": "KeyX" }
+  },
+  "players": 1
+}

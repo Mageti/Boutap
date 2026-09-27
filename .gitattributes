@@ -1,0 +1,69 @@
+# Normalisation des fins de ligne + gestion des fichiers binaires.
+# Voir https://git-scm.com/docs/gitattributes
+
+# --- Texte : LF obligatoire (le projet est cross-platform) ------------------
+* text=auto eol=lf
+
+*.md      text eol=lf
+*.txt     text eol=lf
+*.json    text eol=lf
+*.jsonc   text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.toml    text eol=lf
+*.csv     text eol=lf
+*.cs      text eol=lf
+*.csproj  text eol=lf
+*.sln     text eol=lf
+*.props   text eol=lf
+*.targets text eol=lf
+*.gd      text eol=lf
+*.tscn    text eol=lf
+*.tres    text eol=lf
+*.godot   text eol=lf
+*.py      text eol=lf
+*.sh      text eol=lf
+*.ps1     text eol=lf
+*.xml     text eol=lf
+*.cfg     text eol=lf
+*.ini     text eol=lf
+LICENSE   text eol=lf
+CODE_OF_CONDUCT.md text eol=lf
+
+# --- Windows : .bat et .cmd doivent rester en CRLF ---------------------------
+*.bat     text eol=crlf
+*.cmd     text eol=crlf
+
+# --- Fichiers de contenu de jeu : treated as binary (poids,entropy) ---------
+*.pck     binary
+*.btp     binary
+*.ogg     binary
+*.opus    binary
+*.wav     binary
+*.flac    binary
+*.mp3     binary
+*.png     binary
+*.jpg     binary
+*.webp    binary
+*.ttf     binary
+*.otf     binary
+*.ttc     binary
+*.woff    binary
+*.woff2   binary
+*.mp4     binary
+*.webm    binary
+
+# --- Exports Godot (patterns custom) ----------------------------------------
+/build/**   export-ignore linguist-generated=true
+/dist/**    export-ignore linguist-generated=true
+/site/**    export-ignore linguist-generated=true
+
+# --- Fichiers de badges / lock : générés, ne pas reviewer -------------------
+*.lock linguist-generated=true
+package-lock.json linguist-generated=true
+pnpm-lock.yaml linguist-generated=true
+yarn.lock linguist-generated=true
+
+# --- Documentation : forcer l'interpretation en markdown --------------------
+*.md linguist-documentation
+LICENSE linguist-documentation=false

@@ -1,0 +1,100 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Boutap — jeu de rythme à neuf touches
+# https://github.com/<org>/boutap
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Secrets & variables locales ─────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.local
+secrets.*
+
+# ── .NET / C# ───────────────────────────────────────────────────────────────
+bin/
+obj/
+*.user
+*.suo
+*.userprefs
+*.csproj.user
+project.lock.json
+artifacts/
+TestResults/
+*.trx
+*.coverage
+*.coverlet.json
+.vs/
+BenchmarkDotNet.Artifacts/
+
+# ── Godot 4 ─────────────────────────────────────────────────────────────────
+# Cache d'import et métadonnées générées : jamais versionnées.
+.godot/
+.import/
+# Godot 3 legacy, gardé par sécurité.
+export.cfg
+export_presets.cfg
+*.translation
+
+# ── Build / exports ─────────────────────────────────────────────────────────
+/build/
+/dist/
+/out/
+/export/
+*.apk
+*.aab
+*.pck
+*.AppImage
+*.appimage
+*.exe
+*.msi
+*.deb
+*.rpm
+*.flatpak
+*.flatpakref
+*.tar.gz
+# Les sommes de_checksum des livrables ne sont pas versionnees, mais les
+# fichiers d'or du generateur (tests/goldens.sha256) DOIVENT l'etre.
+*.sha256
+!tests/goldens.sha256
+
+# ── Données utilisateur & tests locaux (jamais versionnées) ─────────────────
+/userdata/
+/logs/
+/songs/local/
+/packs/local/
+*.tmp
+*.bak
+# Repertoire temporaire des tests en CI (voir .github/workflows/ci.yml).
+/.tmp-tests/
+
+# ── Python : sonde de recherche (tools/probe) ───────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# ── Documentation générée (mkdocs) ──────────────────────────────────────────
+/site/
+
+# ── OS / éditeurs ───────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+!.vscode/extensions.json
+*.sublime-workspace
+*.sublime-project
+.fleet/

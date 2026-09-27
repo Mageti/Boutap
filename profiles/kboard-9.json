@@ -1,0 +1,26 @@
+{
+  "profile": "1.0",
+  "name": "kboard-9",
+  "description": "Neuf touches serrées sur une seule rangée, pour les claviers compacts et les claviers de voyage. Conçu pour les machines où le pavé numérique n'existe pas et où la rangée ASDFGhjkl est tout ce qu'on a.",
+  "notes": "Les neuf touches sont alignées horizontalement. La disposition ne ressemble pas à une grille 3×3, donc les repères visuels de position ne correspondent pas à la position des doigts : c'est le prix de ce profil, et il est assumé. Pour un joueur dyslexique, default-9 ou un profil en grille sont préférables ; celui-ci est un repli. Une variante verticale peut être écrite par le joueur dans l'éditeur, en trois rangées de trois.",
+  "latency_ms": 0,
+  "buttons": {
+    "T0": { "type": "key", "code": "KeyA" },
+    "T1": { "type": "key", "code": "KeyS" },
+    "T2": { "type": "key", "code": "KeyD" },
+    "T3": { "type": "key", "code": "KeyF" },
+    "T4": { "type": "key", "code": "KeyG" },
+    "T5": { "type": "key", "code": "KeyH" },
+    "T6": { "type": "key", "code": "KeyJ" },
+    "T7": { "type": "key", "code": "KeyK" },
+    "T8": { "type": "key", "code": "KeyL" },
+
+    "WHEEL_L": { "type": "key", "code": "Space" },
+    "WHEEL_R": { "type": "key", "code": "ShiftLeft" }
+  },
+  "wheels": {
+    "L": { "type": "key", "code": "Space" },
+    "R": { "type": "key", "code": "ShiftLeft" }
+  },
+  "players": 1
+}

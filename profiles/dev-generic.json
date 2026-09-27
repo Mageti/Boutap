@@ -1,0 +1,23 @@
+{
+  "profile": "1.0",
+  "name": "dev-generic",
+  "description": "Manette générique à huit boutons, sans les deux volants. Sert à développer et à tester Boutap sans matériel arcade : une manette de jeu classique, branchée sur n'importe quelle prise USB, doit suffire à faire tourner le jeu de bout en bout.",
+  "notes": "Cinq touches en croix, trois boutons d'épaule. Les huit boutons sont affectés dans l'ordre de la numérotation standard des manettes. Il n'y a que huit touches là où le jeu en attend neuf : la neuvième touche est affectée au bouton d'épaule droite, ce qui est un compromis acceptable pour un test mais rend le niveau CASCADE peu confortable. Pour jouer sérieusement, utiliser popn-gamepad ou créer un profil dans l'éditeur.",
+  "latency_ms": 0,
+  "buttons": {
+    "T0": { "type": "gamepad_button", "code": "JoyButton0" },
+    "T1": { "type": "gamepad_button", "code": "JoyButton1" },
+    "T2": { "type": "gamepad_button", "code": "JoyButton2" },
+    "T3": { "type": "gamepad_button", "code": "JoyButton3" },
+    "T4": { "type": "gamepad_button", "code": "JoyButton12" },
+    "T5": { "type": "gamepad_button", "code": "JoyButton13" },
+    "T6": { "type": "gamepad_button", "code": "JoyButton4" },
+    "T7": { "type": "gamepad_button", "code": "JoyButton5" },
+    "T8": { "type": "gamepad_button", "code": "JoyButton6" },
+
+    "WHEEL_L": { "type": "gamepad_button", "code": "JoyButton10" },
+    "WHEEL_R": { "type": "gamepad_button", "code": "JoyButton11" }
+  },
+  "wheels": {},
+  "players": 1
+}

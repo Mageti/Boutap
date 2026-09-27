@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/boutap/schema/chart.schema.json",
+  "title": "Partition Boutap (.btp)",
+  "description": "Une partition = une suite de notes, exprimées en SECONDES ABSOLUES depuis le début de l'audio. Fichier sérialisé en JSONC. Les règles sémantiques (notes triées sans doublon, borne de fin de morceau, cohérence avec le manifeste) sont appliquées par `boutap audit` : voir wiki: format.md.",
+
+  "type": "object",
+  "required": ["schema", "level", "audio_sha256", "offset_seconds", "generator", "notes"],
+  "additionalProperties": false,
+
+  "properties": {
+    "schema": {
+      "description": "Identifiant de ce schéma.",
+      "const": "boutap/chart/1"
+    },
+
+    "level": {
+      "description": "Niveau auquel appartient cette partition. Doit correspondre à l'entrée de même nom dans le manifeste.",
+      "type": "string",
+      "enum": ["berceau", "ronde", "cascade"]
+    },
+
+    "audio_sha256": {
+      "description": "SHA-256 de l'audio décodé, identique à celui du manifeste. C'est le lien qui empêche de jouer la partition d'un morceau contre l'audio d'un autre.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+
+    "offset_seconds": {
+      "description": "Décalage entre l'instant 0 de l'audio et l'instant 0 du jeu. Vaut 0 dans la V1 (les notes commencent avec le morceau) ; le champ existe pour les extraits et les intros longs.",
+      "type": "number",
+      "minimum": 0,
+      "maximum": 60
+    },
+
+    "generator": {
+      "description": "Copie de la provenance depuis le manifeste. Permet de mélanger deux partitions d'une même partition d'origine (une partie humaine, une partie générée) sans perdre l'information.",
+      "type": "object",
+      "required": ["name", "version", "seed"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$"
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        }
+      }
+    },
+
+    "notes": {
+      "description": "Les notes, dans l'ordre. `boutap audit` vérifie qu'elles sont triées par `t` croissant sans égalité stricte.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100000,
+      "items": { "$ref": "#/$defs/note" }
+    }
+  },
+
+  "$defs": {
+    "note": {
+      "type": "object",
+      "required": ["t", "k"],
+      "additionalProperties": false,
+      "properties": {
+
+        "t": {
+          "description": "Instant d'ARRIVÉE de la note, en secondes absolues depuis le début de l'audio. Jamais en mesures, jamais en temps musicaux : une mesure se dilate quand le tempo dérive, un temps absolu reste vrai. C'est la règle N1 du projet.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 3600.5
+        },
+
+        "k": {
+          "description": "Touche. 0 à 8 = les neuf touches de la grille 3×3, dans l'ordre ligne par ligne. Les deux valeurs nommées `WHEEL_L` et `WHEEL_R` désignent les volants. Un clavier n'a pas de touches 9 et 10 : une partition qui n'utilise que les volants reste jouable au clavier, avec 0 % de bonus.",
+          "anyOf": [
+            { "type": "integer", "minimum": 0, "maximum": 8 },
+            { "type": "string", "enum": ["WHEEL_L", "WHEEL_R"] }
+          ]
+        },
+
+        "d": {
+          "description": "Durée de maintien, en secondes. Absente ou nulle pour une note simple. Un maintien qui dépasse la note suivante sur la même touche est refusé à la lecture, pas au chargement : on ne refuse pas un morceau pour une note maladroite.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+
+        "v": {
+          "description": "Force du coup, de 0 à 8. Influence la couleur et le volume du rendu, jamais la fenêtre de jugement : la difficulté ne doit pas dépendre d'un réglage d'écriture.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8,
+          "default": 8
+        },
+
+        "w": {
+          "description": "Largeur de la fenêtre de jugement, en multiplicateur. Permet d'élargir localement une zone difficile sans toucher aux réglages globaux — par exemple sur un silence brutal. Absente ou égale à 1 dans la V1.",
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 3,
+          "default": 1
+        },
+
+        "s": {
+          "description": "Décalage de phase, en temps musicaux : 0, 0.125, 0.25, 0.375. Corrige une partition qui tombe un demi-temps à côté de la musique, sans toucher à tous les temps un par un. Absent ou nul dans la V1.",
+          "type": "number",
+          "enum": [0, 0.125, 0.25, 0.375],
+          "default": 0
+        }
+      }
+    }
+  }
+}
