@@ -1,0 +1,29 @@
+<!--
+  SPDX-FileCopyrightText: Boutap contributors
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Tests de Boutap.Game. Le projet de test vit a cote du projet teste (wiki: decision D1)
+  pour que la liste des assemblies soit lisible en un coup d'oeil.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Boutap.Game.Tests</RootNamespace>
+    <AssemblyName>Boutap.Game.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Boutap.Game\Boutap.Game.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Boutap.Core\Boutap.Core.csproj" />
+  </ItemGroup>
+
+</Project>

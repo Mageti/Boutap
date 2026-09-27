@@ -1,0 +1,12 @@
+<!--
+  SPDX-FileCopyrightText: Boutap contributors
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Boutap.Gen — la recherche d'information et la generation de charts. Aucun acces au temps reel : une generation doit etre rejouable a partir de la seule graine inscrite dans le pack.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Boutap.Gen</RootNamespace>
+    <AssemblyName>Boutap.Gen</AssemblyName>
+  </PropertyGroup>
+</Project>

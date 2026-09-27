@@ -1,0 +1,59 @@
+<!--
+  SPDX-FileCopyrightText: Boutap contributors
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Boutap — réglages de compilation communs à tous les projets C#.
+
+  Ces réglages sont ceux que la CI vérifie implicitement : une compilation
+  déterministe (wiki: spec.md §7.3), sans dépendance native inutile, et
+  assez stricte pour qu'une erreur de nullabilité ne puisse pas passer inaperçue
+  dans une relecture.
+-->
+<Project>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Le projet ne tolère pas un avertissement qu'on laisse trainer. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <!-- Le style est vérifié par `dotnet format` en CI, pas à la compilation :
+         ce serait des dizaines de milliers de lignes de bruit sur des choix
+         qui ne sont pas des défauts. -->
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Deux machines doivent produire le même octet. -->
+    <Deterministic>true</Deterministic>
+    <DeterministicSourcePaths>true</DeterministicSourcePaths>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- La version est unique et suit CHANGELOG.md. `SemanticVersion.Current`
+         dans Boutap.Core porte la même valeur, et un test de Boutap.Tools
+         vérifie que les deux ne divergent pas. -->
+    <Version>0.1.0</Version>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('.Tests'))">
+    <!-- CA1707 : les noms des tests sont imposés littéralement par l'ADR 0005
+         (« Graine_Same_Input_Donne_Meme_Sequence », etc.). Les renommer
+         casserait la correspondance entre l'ADR et le code, qui est justement
+         ce que l'ADR veut obtenir. -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+
+</Project>

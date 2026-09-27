@@ -32,7 +32,10 @@ BenchmarkDotNet.Artifacts/
 .import/
 # Godot 3 legacy, gardé par sécurité.
 export.cfg
-export_presets.cfg
+# export_presets.cfg est volontairement ABSENT de cette liste : les presets
+# d'export sont des entrees de build, pas un reglage local. La CI les lit pour
+# produire les 4 cibles, donc un changement de preset est un changement de
+# contrat et doit passer en revue.
 *.translation
 
 # ── Build / exports ─────────────────────────────────────────────────────────
@@ -66,6 +69,11 @@ export_presets.cfg
 *.bak
 # Repertoire temporaire des tests en CI (voir .github/workflows/ci.yml).
 /.tmp-tests/
+# Caches de travail partages, montes par scripts/dev.sh hors de /src.
+# Vides et recrees a la demande, jamais versionnes.
+/.cache/
+# Worktrees CodeNomad, propres a l'outillage de poste de travail.
+/.codenomad/
 
 # ── Python : sonde de recherche (tools/probe) ───────────────────────────────
 __pycache__/

@@ -1,0 +1,14 @@
+<!--
+  SPDX-FileCopyrightText: Boutap contributors
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Boutap.Core — le noyau deterministe : rien qui lise l'horloge, le systeme
+  de fichiers, la locale ou un alea non controle. Tout ce qui vit ici doit
+  pouvoir s'executer deux fois, sur deux machines, et donner le meme resultat.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Boutap.Core</RootNamespace>
+    <AssemblyName>Boutap.Core</AssemblyName>
+  </PropertyGroup>
+</Project>

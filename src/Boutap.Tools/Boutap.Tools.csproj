@@ -1,0 +1,24 @@
+<!--
+  SPDX-FileCopyrightText: Boutap contributors
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Boutap.Tools — l'outil en ligne de commande du projet : audit, validation,
+  lecture, mesure. Aucun paquet NuGet : la ligne de commande est ecrite a la
+  main pour que `boutap` reste installable partout sans etre compiles.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Boutap.Tools</RootNamespace>
+    <AssemblyName>boutap</AssemblyName>
+    <!-- Un outil doit rester copiable tel quel sur une autre machine. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Boutap.Audio\Boutap.Audio.csproj" />
+    <ProjectReference Include="..\Boutap.Core\Boutap.Core.csproj" />
+    <ProjectReference Include="..\Boutap.Gen\Boutap.Gen.csproj" />
+    <ProjectReference Include="..\Boutap.Input\Boutap.Input.csproj" />
+  </ItemGroup>
+</Project>

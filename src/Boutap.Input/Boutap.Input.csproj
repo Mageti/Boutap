@@ -1,0 +1,17 @@
+<!--
+  SPDX-FileCopyrightText: Boutap contributors
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Boutap.Input — la conversion d'evenements d'entree en temps de jeu, et l'etalonnage de la latence une fois au demarrage. Isole pour que le noyau reste testable sans materiel.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Boutap.Input</RootNamespace>
+    <AssemblyName>Boutap.Input</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Boutap.Audio\Boutap.Audio.csproj" />
+    <ProjectReference Include="..\Boutap.Core\Boutap.Core.csproj" />
+  </ItemGroup>
+</Project>

@@ -67,6 +67,26 @@ exception_for() {
   return 1
 }
 
+# Répertoires à élaguer, quel que soit leur profondeur. Une version
+# antérieure utilisait « -not -path './bin/*' », qui n'excluait que le
+# `bin/` de la racine : les twelve projets de `src/` ont chacun le leur, et
+# leurs `.json` generes declenchaient une centaine de faux positif. La forme
+# avec « -prune » est la seule qui tienne.
+PRUNED_DIRS=(
+  .git third_party build bin obj
+  .cache .codenomad .tmp-tests .venv TestResults
+)
+
+# Un seul « -prune -o » pour tout le monde : « -name X -prune -o -name Y -prune
+# -o ... ) -o -type f » laisserait un « -o ) » nu, que find refuse.
+prune_expr=()
+for d in "${PRUNED_DIRS[@]}"; do
+  if [ "${#prune_expr[@]}" -gt 0 ]; then
+    prune_expr+=(-o)
+  fi
+  prune_expr+=(-name "$d")
+done
+
 while IFS= read -r file; do
   rel="${file#./}"
   is_exempt "$rel" && continue
@@ -95,15 +115,10 @@ while IFS= read -r file; do
     echo "::error file=$rel::licence annoncée « $found », attendue « $expected »"
     status=1
   fi
-done < <(find . -type f \
-           -not -path './.git/*' \
-           -not -path './third_party/*' \
-           -not -path './build/*' \
-           -not -path './bin/*' \
-           -not -path './obj/*' \
+done < <(find . \( "${prune_expr[@]}" \) -prune -o -type f \
            \( -name '*.cs' -o -name '*.c' -o -name '*.h' -o -name '*.sh' \
               -o -name '*.py' -o -name '*.gd' -o -name '*.tres' -o -name '*.csproj' \) \
-         | sort)
+           -print | sort)
 
 # L'en-tête du script lui-même et celui de check-mojibake.py sont vérifiés
 # ci-dessus puisqu'ils sont en .sh / .py. On vérifie aussi que le dépôt

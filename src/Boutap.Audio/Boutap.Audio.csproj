@@ -1,0 +1,12 @@
+<!--
+  SPDX-FileCopyrightText: Boutap contributors
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Boutap.Audio — l'horloge audio et le decodage. C'est l'unique source de temps du jeu : une decision de gameplay prise a partir d'une autre horloge rend le morceau injouable de facon non deterministe.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Boutap.Audio</RootNamespace>
+    <AssemblyName>Boutap.Audio</AssemblyName>
+  </PropertyGroup>
+</Project>

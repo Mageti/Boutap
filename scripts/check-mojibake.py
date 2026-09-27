@@ -78,7 +78,12 @@ OPTIONAL = {
 EXTENSIONS = ('.md', '.json', '.yml', '.yaml', '.cs', '.sh', '.py',
               '.cff', '.editorconfig', '.gitattributes', '.gitignore')
 
-SKIP_DIRS = ('.git', 'third_party', 'build', 'obj', '.venv', 'bin')
+# Repertoires que l'on ne relit pas : caches d'outillage, sorties de build,
+# et repertoires de travail crees par scripts/dev.sh. Sans eux, un simple
+# `dotnet build` produit une centaine de faux positifs dans obj/ et bin/.
+SKIP_DIRS = ('.git', 'third_party', 'build', 'obj', '.venv', 'bin',
+             '.cache', '.codenomad', '.tmp-tests', 'TestResults',
+             'dist', 'out', 'export', 'site', '__pycache__')
 
 
 def build_pattern(allowed_blocks):

@@ -1,0 +1,12 @@
+<!--
+  SPDX-FileCopyrightText: Boutap contributors
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Boutap.Game — la logique de jeu independante du moteur de rendu : lecture d'un chart, fenetres de jugement, score, calibration. Testable sans fenetre ni carte graphique.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Boutap.Game</RootNamespace>
+    <AssemblyName>Boutap.Game</AssemblyName>
+  </PropertyGroup>
+</Project>

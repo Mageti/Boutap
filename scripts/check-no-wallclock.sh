@@ -48,14 +48,30 @@ PATTERNS=(
 ALLOW=(
   "src/Boutap.Input/InputClock.cs|QueryPerformanceCounter|mesure une fois l'ecart entre l'horloge du noyau et l'horloge audio"
   "src/Boutap.Audio/AudioClock.cs|QueryPerformanceCounter|etalonnage de l'horloge audio au demarrage"
-  "src/Boutap.Tools/Commands/BenchLatency.cs|Stopwatch.StartNew|mesure de latence hors boucle de jeu"
-  "src/Boutap.Tools/Commands/BenchInput.cs|Stopwatch.StartNew|mesure de latence hors boucle de jeu"
-  "src/Boutap.Tools/Commands/BenchCi.cs|Stopwatch.StartNew|mesure de la duree totale de la CI locale"
+  "src/Boutap.Tools/Commands/BenchLatencyCommand.cs|Stopwatch.StartNew|mesure de la latence de la chaine audio, hors boucle de jeu"
+  "src/Boutap.Tools/Commands/BenchInputCommand.cs|Stopwatch.StartNew|mesure de la latence de la chaine d'entree, hors boucle de jeu"
+  "src/Boutap.Tools/Commands/BenchCiCommand.cs|Stopwatch.StartNew|mesure de la duree totale de la CI locale"
 )
+
+# Marqueur en ligne, pour les cas qu'aucune liste ne peut anticiper : un test
+# qui cherche la chaine interdite doit la contenir, et un commentaire peut la
+# citer. « R1-allow: <raison> » sur la ligne concerned desarme le motif pour
+# cette ligne. Une raison vide reste une autorisation sans raison.
+R1_MARKER="R1-allow:"
 
 is_allowed() {
   local file="$1" line_no="$2" pattern="$3" content="$4"
   local entry
+  # Déclarations séparées : dans `local a=… b=$a`, bash développe $a avant
+  # d'exécuter local, donc b lirait la variable du niveau appelant.
+  if [[ "$content" == *"$R1_MARKER"* ]]; then
+    local inline_reason="${content#*"$R1_MARKER"}"
+    if [ -z "${inline_reason//[[:space:]]/}" ]; then
+      echo "   autorisation SANS RAISON : $file:$line_no ($pattern)"
+      return 1
+    fi
+    return 0
+  fi
   for entry in "${ALLOW[@]}"; do
     # Déclarations séparées : dans `local a=… b=$a`, bash développe $a avant
     # d'exécuter local, donc b lirait la variable du niveau Called.
@@ -81,6 +97,11 @@ scanned=0
 
 for dir in "${DIRS[@]}"; do
   [ -d "$dir" ] || continue
+  # Même raison que dans les deux autres scripts : « -path './bin/*' »
+  # n'excluait que la racine. Les objets de compilation sont du code
+  # généré, et generated_code_marker ne s'applique qu'aux sources du
+  # projet : les balayer reviendrait a auditer la sortie du compilateur.
+  # third_party/ n'est pas élagué parce que les DIRS ne le contiennent pas.
   while IFS= read -r file; do
     scanned=$((scanned + 1))
     rel="${file#./}"
@@ -98,13 +119,24 @@ for dir in "${DIRS[@]}"; do
           if is_allowed "$rel" "$line_no" "$pattern" "$line"; then
             continue
           fi
+          if [ "$is_test" -eq 1 ]; then
+            # Un test doit pouvoir citer l'appel interdit : c'est
+            # littéralement ce qu'il cherche. Reste un avertissement, visible,
+            # jamais un échec de build.
+            echo "::warning file=$rel,line=$line_no::Règle R1 dans un test — « $line » (motif : $pattern)"
+            continue
+          fi
           echo "::error file=$rel,line=$line_no::Règle R1 — « $line » (motif : $pattern)"
           echo "   Le temps de jeu vient de l'horloge audio. Voir wiki: spec.md §7.3."
           status=1
         fi
       done < "$file"
     done
-  done < <(find "$dir" -type f \( -name '*.cs' -o -name '*.c' -o -name '*.h' \) | sort)
+  done < <(find "$dir" \
+             \( -name bin -o -name obj -o -name build -o -name .cache \
+                -o -name .codenomad -o -name .tmp-tests -o -name TestResults \
+             \) -prune -o \
+             -type f \( -name '*.cs' -o -name '*.c' -o -name '*.h' \) -print | sort)
 done
 
 if [ "$scanned" -eq 0 ]; then
