@@ -7,7 +7,7 @@
 #   2. l'absence de BOM ;
 #   3. l'absence d'espace en fin de ligne et de tabulation en début de ligne.
 #
-# Les points 1 et 3 sont des causes numbered de conflits de fusion
+# Les points 1 et 3 sont des causes numérotées de conflits de fusion
 # inutiles. Le point 2 évite un caractère invisible en tête de fichier .cs,
 # que le compilateur rejette avec un message incompréhensible.
 #
@@ -33,11 +33,31 @@ cd "$ROOT"
 # CRLF, il s'ajoute ici, et la verification correspondante se reveille.
 CRLF_GLOBS=()
 
+# Fichiers dont l'indentation est legitimement une tabulation. La regle
+# generale « pas de tabulation en debut de ligne » existe parce qu'un melange
+# des deux dans un meme fichier rend chaque diff illisible ; elle ne doit pas
+# interdire le format que les outils eux-memes ecrivent. Ces choix viennent
+# d'`.editorconfig` (`[*.{gd,tscn,tres,godot,cfg}] indent_style = tab`) et de
+# la convention Visual Studio pour les `.sln`.
+TAB_GLOBS=(
+  "*.sln" "*.godot" "*.gd" "*.tscn" "*.tres" "*.cfg"
+)
+
 status=0
 checked=0
 
 # tolère les motifs sans correspondance (comportement normal de `find`).
 set +o pipefail
+
+is_tab_file() {
+  local file="$1"
+  local g
+  for g in "${TAB_GLOBS[@]}"; do
+    # shellcheck disable=SC2053
+    [[ "$file" == $g ]] && return 0
+  done
+  return 1
+}
 
 is_crlf_file() {
   local file="$1"
@@ -100,8 +120,9 @@ while IFS= read -r file; do
     status=1
   fi
 
-  # Tabulation en début de ligne (hors makefile, absents du dépôt)
-  if grep -nU $'^\t' "$file" >/dev/null 2>&1; then
+  # Tabulation en début de ligne, sauf pour les formats qui l'utilisent
+  # nativement (voir TAB_GLOBS).
+  if ! is_tab_file "$rel" && grep -nU $'^\t' "$file" >/dev/null 2>&1; then
     lines=$(grep -cU $'^\t' "$file" || true)
     echo "::error file=$rel,line=1::$lines ligne(s) commençant par une tabulation"
     status=1
@@ -112,10 +133,20 @@ while IFS= read -r file; do
     echo "::error file=$rel::pas de saut de ligne à la fin du fichier"
     status=1
   fi
+# Les extensions inspectees couvrent aussi les fichiers de projet et de
+# configuration. Les versions anterieures n'examinaient que le code et la
+# documentation : un `.csproj` en CRLF avec un BOM passait, alors qu'il casse
+# le build Windows de facon obscure.
 done < <(find . \( "${prune_expr[@]}" \) -prune -o -type f \
-           \( -name '*.cs' -o -name '*.md' -o -name '*.json' -o -name '*.yml' \
-              -o -name '*.yaml' -o -name '*.sh' -o -name '*.py' -o -name '*.cff' \
-              -o -name '*.txt' -o -name '*.c' -o -name '*.h' \) -print | sort)
+           \( -name '*.cs' -o -name '*.csproj' -o -name '*.sln' -o -name '*.props' \
+              -o -name '*.targets' -o -name '*.md' -o -name '*.json' \
+              -o -name '*.yml' -o -name '*.yaml' -o -name '*.sh' -o -name '*.py' \
+              -o -name '*.cff' -o -name '*.txt' -o -name '*.c' -o -name '*.h' \
+              -o -name '*.gd' -o -name '*.tscn' -o -name '*.tres' \
+              -o -name '*.godot' -o -name '*.cfg' -o -name '*.toml' \
+              -o -name '*.csv' -o -name '*.xml' -o -name '*.ps1' \
+              -o -name '.editorconfig' -o -name '.gitattributes' \
+              -o -name '.gitignore' \) -print | sort)
 
 if [ "$checked" -eq 0 ]; then
   echo "Aucun fichier texte à vérifier."
