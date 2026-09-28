@@ -72,7 +72,16 @@ le préfixe `v` n'est pas utilisé.
   rapport, 1 sous licence partagee, 6 volontairement invalides) plus
   `demo.btp`. `--check` verifie que le depot contient exactement ce que la
   fabrique produit.
-- **238 tests** d'unite au vert.
+- **145 tests** couvrant tout le namespace `Compose`, qui n'en avait aucun :
+  pliage des hauteurs, accords, quantification, courbe d'effort, lisibilité
+  (règles L1 à L10, avec les seuils de part et d'autre et l'ordre des règles),
+  simulation de joueur, humanisation, nettoyage, et la chaîne complète jusqu'au
+  pack. Dont la promesse centrale du format, vérifiée : **deux générations
+  successives du même audio produisent le même pack, octet pour octet**,
+  horodatages d'archive ZIP compris, et le contre-test qui prouve que le
+  test précédent ne prouve rien tant qu'un changement d'empreinte ne change
+  pas le résultat.
+- **477 tests** d'unite au vert.
 
 ### Corrigé
 
@@ -107,6 +116,16 @@ le préfixe `v` n'est pas utilisé.
   gabarits sont ceux de 1982, complets et sans retouche ; c'est la spec qui est
   décalée, puisqu'elle place 4.38 sur la médiante et 5.38 sur la dominante. La
   régression est couverte par un test sur le chroma de La majeur.
+- **La première note d'une partition commençant par un tenu disparaissait.**
+  Dans la règle L7 de `ReadabilityFilter.Reject`, la condition
+  `index == 0 || Math.Abs(hold.Time - note.Time) > 1e-9` mettait la toute
+  première note contre son propre début de tenue : l'exemption destinée à
+  protéger la première note — celle qui n'a rien devant elle — était justement
+  ce qui la faisait tomber. L'inégalité est inversée, il fallait `index > 0`.
+  Une partition réduite à un unique tenu ressortait vide. Le générateur
+  n'émettant que des frappes, la perte ne l'atteignait pas, mais `Smooth` est
+  une API publique de la bibliothèque et toute partition importée ou écrite à la
+  main s'en trouvait amputée.
 - **Un pack écrit par `boutap` était invalide** : `PackFormat.ChartFileName`
   oubliait l'extension `.json`, donc les charts étaient écrits sous
   `charts/berceau` et le pack se déclarait lui-même absent de lui-même.

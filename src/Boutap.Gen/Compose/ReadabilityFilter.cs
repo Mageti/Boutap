@@ -202,7 +202,11 @@ public static class ReadabilityFilter
                 break;
             }
 
-            if (index == 0 || Math.Abs(hold.Time - note.Time) > 1e-9)
+            // La note n'est pas comparee a elle-meme, et la premiere note
+            // n'est comparee a rien : il n'y a rien devant elle. Sans cette
+            // condition, une partition qui commence par un tenu perdait sa
+            // premiere note, comparee a son propre debut de tenue.
+            if (index > 0 && Math.Abs(hold.Time - note.Time) > 1e-9)
             {
                 double start = hold.Time;
                 double end = hold.EndTime;
