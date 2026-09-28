@@ -12,6 +12,9 @@ public static class CommandRegistry
     [
         new VersionCommand(),
         new AboutCommand(),
+        new ValidateCommand(),
+        new ShowCommand(),
+        new AuditCommand(),
         new BenchCiCommand(),
         new BenchLatencyCommand(),
         new BenchInputCommand(),
@@ -21,6 +24,12 @@ public static class CommandRegistry
 
     /// <summary>Toutes les commandes, dans l'ordre d'affichage.</summary>
     public static IReadOnlyList<ICommand> All => CommandsArray;
+
+    /// <summary>Donne les drapeaux d'une commande, pour le lecteur de ligne de commande.</summary>
+    /// <param name="name">Nom de la commande.</param>
+    /// <returns>Les options sans valeur, ou une liste vide si la commande est inconnue.</returns>
+    public static IReadOnlyList<string> FlagsOf(string name) =>
+        Find(name) is ICommand command ? command.Flags : [];
 
     /// <summary>Trouve une commande par son nom.</summary>
     /// <param name="name">Nom de la commande.</param>

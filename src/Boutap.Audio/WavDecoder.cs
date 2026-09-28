@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 using System.Buffers.Binary;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using Boutap.Core.Common;
 
 namespace Boutap.Audio;
 
@@ -77,21 +80,34 @@ public static class WavDecoder
 
         using BinaryReader reader = new(stream, System.Text.Encoding.ASCII, leaveOpen: true);
 
-        if (stream.Length < 12)
+        // La longueur n'est pas toujours connue. Une entree ZIP comprimee
+        // donne un DeflateStream, dont Length leve NotSupportedException : se
+        // fier a Length ferait refuser tout pack ecrit avec compression, donc
+        // tous les packs que notre propre ecrivain produit.
+        bool lengthKnown = TryGetLength(stream, out long length);
+
+        if (lengthKnown && length < 12)
         {
             throw new WavFormatException("Fichier trop court pour etre un WAV.");
         }
 
-        if (ReadFourCc(reader) != "RIFF")
+        try
         {
-            throw new WavFormatException("Signature 'RIFF' absente : ce n'est pas un fichier WAV.");
+            if (ReadFourCc(reader) != "RIFF")
+            {
+                throw new WavFormatException("Signature 'RIFF' absente : ce n'est pas un fichier WAV.");
+            }
+
+            _ = reader.ReadUInt32();
+
+            if (ReadFourCc(reader) != "WAVE")
+            {
+                throw new WavFormatException("Le type 'WAVE' est absent : ce n'est pas un fichier WAV.");
+            }
         }
-
-        _ = reader.ReadUInt32();
-
-        if (ReadFourCc(reader) != "WAVE")
+        catch (EndOfStreamException ex)
         {
-            throw new WavFormatException("Le type 'WAVE' est absent : ce n'est pas un fichier WAV.");
+            throw new WavFormatException("Fichier trop court pour etre un WAV.", ex);
         }
 
         int channels = 0;
@@ -102,11 +118,42 @@ public static class WavDecoder
         long dataOffset = -1;
         long dataLength = 0;
 
-        while (stream.Position + 8 <= stream.Length)
+        // Un flux n'est pas toujours seekable : l'entree d'un ZIP l'est
+        // rarement, et c'est pourtant par elle qu'arrivent les audios de pack.
+        // On suit donc la position plutot que de la partager avec le flux, et
+        // on s'arrete sur le premier 'data' lorsque le retour n'est pas
+        // possible.
+        bool canSeek = stream.CanSeek;
+        long position = 12;
+
+        long limit = lengthKnown ? length : long.MaxValue;
+
+        while (position + 8 <= limit)
         {
-            string chunkId = ReadFourCc(reader);
-            uint chunkSize = reader.ReadUInt32();
-            long chunkStart = stream.Position;
+            string chunkId;
+            uint chunkSize;
+            try
+            {
+                chunkId = ReadFourCc(reader);
+                chunkSize = reader.ReadUInt32();
+            }
+            catch (EndOfStreamException)
+            {
+                // Fin de fichier au milieu d'un en-tete de chunk : il n'y a
+                // plus rien a lire, ce qui est la sortie normale de la boucle.
+                break;
+            }
+
+            position += 8;
+            long chunkStart = position;
+
+            // Octets du corps du chunk deja lus. Seul 'fmt ' a un corps qu'on
+            // lit sur place ; tous les autres sont sautes d'un bloc. Sans ce
+            // compte, on sauterait par-dessus ce qu'on vient de lire en
+            // cherchant le chunk suivant, et le 'data' disparaitrait — mais
+            // seulement sur un flux qu'on ne peut pas repositionner, donc
+            // seulement sur l'audio d'un pack.
+            int consumed = 0;
 
             if (chunkId == "fmt ")
             {
@@ -114,6 +161,8 @@ public static class WavDecoder
                 {
                     throw new WavFormatException($"Le chunk 'fmt ' est trop court ({chunkSize} octets).");
                 }
+
+                consumed = 16;
 
                 int formatTag = reader.ReadUInt16();
                 channels = reader.ReadUInt16();
@@ -139,6 +188,7 @@ public static class WavDecoder
                     int validBits = reader.ReadUInt16();
                     _ = reader.ReadUInt32(); // dwChannelMask
                     uint subformat = reader.ReadUInt32(); // 4 premiers octets du GUID
+                    consumed = 28;
                     isFloat = subformat == SubtypeIeeeFloat;
                     if (subformat != SubtypePcm && !isFloat)
                     {
@@ -174,6 +224,8 @@ public static class WavDecoder
                 dataLength = chunkSize;
             }
 
+            position = chunkStart + consumed;
+
             // Le chunk suivant commence a l'offset aligne sur une frontiere
             // paire, que l'en-tete respecte ou non.
             long next = chunkStart + chunkSize;
@@ -182,17 +234,30 @@ public static class WavDecoder
                 next++;
             }
 
-            // Un chunk vide est legal : next vaut alors chunkStart, qui est
-            // deja 8 octets plus loin que la position precedente, donc la
-            // lecture avance toujours. Comparer avec < plutot que <= evite de
-            // Cas limite : un 'fact' de longueur nulle, que les encodeurs ecrivent
-            // pourtant souvent.
-            if (next < chunkStart || next > stream.Length)
+            // Un chunk de longueur nulle est legal : next vaut alors
+            // chunkStart, qui est deja plus loin que la position precedente,
+            // donc la lecture avance toujours. Comparer avec < plutot qu'avec
+            // <= evite de s'arreter sur ces chunks, qu'ecrivent pourtant
+            // beaucoup d'encodeurs — un 'fact' vide precede souvent 'data'.
+            if (next < chunkStart || (lengthKnown && next > limit))
             {
                 break;
             }
 
-            stream.Position = next;
+            if (!canSeek && chunkId == "data")
+            {
+                if (!haveFormat)
+                {
+                    throw new WavFormatException(
+                        "Sur un flux qu'on ne peut pas repositionner, le chunk 'fmt ' doit preceder 'data'.");
+                }
+
+                // Le flux est deja sur les donnees : continuer le balayage
+                // reviendrait a perdre leur position.
+                break;
+            }
+
+            SkipTo(stream, ref position, next, canSeek);
         }
 
         if (!haveFormat)
@@ -252,19 +317,10 @@ public static class WavDecoder
                 $"Le fichier contient {info.SampleCount} echantillons, au-dela de ce que cette version lit.");
         }
 
-        stream.Position = info.DataOffset;
-        byte[] raw = new byte[info.DataLength];
-        int read = 0;
-        while (read < raw.Length)
-        {
-            int chunk = stream.Read(raw, read, raw.Length - read);
-            if (chunk <= 0)
-            {
-                break;
-            }
+        PositionOnData(stream, info);
 
-            read += chunk;
-        }
+        byte[] raw = new byte[info.DataLength];
+        int read = ReadFully(stream, raw, raw.Length);
 
         if (read < raw.Length)
         {
@@ -294,6 +350,78 @@ public static class WavDecoder
         }
 
         return samples;
+    }
+
+    /// <summary>
+    /// Calcule le SHA-256 de la forme canonique sans la garder en memoire.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Le hachage porte sur les memes octets que
+    /// <see cref="Sha256Hex.OfBytesHex(System.ReadOnlySpan{byte})"/> applique
+    /// au resultat de <see cref="DecodeToCanonical"/>, mais bloc par bloc. Un
+    /// morceau d'une heure en stereo est long de plusieurs centaines de
+    /// megaoctets en flottants : les garder tous serait payer deux fois la
+    /// memoire pour un resultat qu'on peut obtenir en additionnant.
+    /// </para>
+    /// <para>
+    /// Comme <see cref="DecodeToCanonical"/>, un 'data' tronque donne le hash
+    /// de ce qui est reellement lisible, et un echantillon partiel est jete.
+    /// </para>
+    /// </remarks>
+    /// <param name="stream">Flux positionne au debut du fichier.</param>
+    /// <param name="info">Resultat de <see cref="ReadInfo(Stream)"/> sur le meme flux.</param>
+    /// <param name="sampleCount">Nombre d'echantillons canoniques lus.</param>
+    /// <returns>Le SHA-256 de la forme canonique, en hexadecimal minuscule.</returns>
+    /// <exception cref="WavFormatException">Le flux n'est pas un WAV lisible.</exception>
+    public static string HashCanonicalToHex(Stream stream, WavInfo info, out long sampleCount)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(info);
+
+        PositionOnData(stream, info);
+
+        int bytesPerSample = info.BitsPerSample / 8;
+        int blockBytes = CanonicalBlockBytes(bytesPerSample);
+        int samplesPerBlock = blockBytes / bytesPerSample;
+
+        byte[] raw = new byte[blockBytes];
+        float[] block = new float[samplesPerBlock];
+        long total = 0;
+        long remaining = info.DataLength;
+
+        using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+
+        while (remaining > 0)
+        {
+            int wanted = (int)Math.Min(raw.Length, remaining);
+            int read = ReadFully(stream, raw, wanted);
+            if (read <= 0)
+            {
+                break;
+            }
+
+            remaining -= read;
+
+            // Un echantillon partiel ne formerait pas une image complete.
+            int count = (read - (read % bytesPerSample)) / bytesPerSample;
+            if (count <= 0)
+            {
+                break;
+            }
+
+            for (int i = 0; i < count; i++)
+            {
+                block[i] = DecodeSample(raw, i * bytesPerSample, info);
+            }
+
+            // MemoryMarshal.AsBytes ne copie rien.
+            hash.AppendData(MemoryMarshal.AsBytes<float>(block.AsSpan(0, count)));
+            total += count;
+        }
+
+        sampleCount = total;
+        return Sha256Hex.ToHex(hash.GetHashAndReset());
     }
 
     /// <summary>Decode un WAV en melee, par moyenne des canaux.</summary>
@@ -338,6 +466,114 @@ public static class WavDecoder
         using FileStream stream = File.OpenRead(path);
         WavInfo info = ReadInfo(stream);
         return DecodeToCanonical(stream, info);
+    }
+
+    private static void PositionOnData(Stream stream, WavInfo info)
+    {
+        if (stream.CanSeek)
+        {
+            stream.Position = info.DataOffset;
+            return;
+        }
+
+        if (TryGetPosition(stream, out long position) && position == info.DataOffset)
+        {
+            return;
+        }
+
+        // Position inconnue : aucun flux ne peut le dire, et c'est le cas de
+        // tout ce qui n'est pas seekable. On ne peut donc pas reprocher au
+        // flux d'etre mal positionne — seulement a l'appelant de l'avoir
+        // laisse au bon endroit, ce que garantit la lecture d'en-tete qui
+        // precede. Refuser ici reviendrait a interdire tout flux d'archive,
+        // dont la seule garantie est la position courante.
+        if (TryGetPosition(stream, out _))
+        {
+            throw new WavFormatException(
+                "Le flux n'est pas seekable et n'est pas positionne sur le chunk 'data'. " +
+                "Rouvrir l'en-tete sur ce flux, ou le copier dans un tampon.");
+        }
+    }
+
+    private static bool TryGetLength(Stream stream, out long length)
+    {
+        try
+        {
+            length = stream.Length;
+            return true;
+        }
+        catch (NotSupportedException)
+        {
+            length = -1;
+            return false;
+        }
+    }
+
+    private static bool TryGetPosition(Stream stream, out long position)
+    {
+        try
+        {
+            position = stream.Position;
+            return true;
+        }
+        catch (NotSupportedException)
+        {
+            position = -1;
+            return false;
+        }
+    }
+
+    private static void SkipTo(Stream stream, ref long position, long target, bool canSeek)
+    {
+        if (target <= position)
+        {
+            return;
+        }
+
+        if (canSeek)
+        {
+            stream.Position = target;
+            position = target;
+            return;
+        }
+
+        // Sans repositionnement, la seule facon d'avancer est de traverser.
+        Span<byte> discard = stackalloc byte[4096];
+        while (position < target)
+        {
+            int wanted = (int)Math.Min(discard.Length, target - position);
+            int read = stream.Read(discard[..wanted]);
+            if (read <= 0)
+            {
+                break;
+            }
+
+            position += read;
+        }
+    }
+
+    private static int ReadFully(Stream stream, byte[] buffer, int count)
+    {
+        int read = 0;
+        while (read < count)
+        {
+            int chunk = stream.Read(buffer, read, count - read);
+            if (chunk <= 0)
+            {
+                break;
+            }
+
+            read += chunk;
+        }
+
+        return read;
+    }
+
+    /// <summary>Taille d'un bloc de lecture, multiple de la largeur d'echantillon.</summary>
+    private static int CanonicalBlockBytes(int bytesPerSample)
+    {
+        const int Target = 64 * 1024;
+        return (Target / bytesPerSample) * bytesPerSample;
     }
 
     private static float DecodeSample(byte[] raw, int offset, WavInfo info)

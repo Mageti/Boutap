@@ -9,4 +9,10 @@
     <RootNamespace>Boutap.Audio</RootNamespace>
     <AssemblyName>Boutap.Audio</AssemblyName>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Pour IPackAudioProbe : l'interface vit dans Core parce que le
+         validateur de packs s'en sert, et Core ne peut pas dependre d'Audio. -->
+    <ProjectReference Include="../Boutap.Core/Boutap.Core.csproj" />
+  </ItemGroup>
 </Project>

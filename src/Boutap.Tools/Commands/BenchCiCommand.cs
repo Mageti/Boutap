@@ -40,6 +40,8 @@ public sealed class BenchCiCommand : ICommand
     public string Usage => "boutap bench-ci [--iterations N] [--json]";
 
     /// <inheritdoc/>
+    public IReadOnlyList<string> Flags => ["json"];
+
     public int Run(CommandContext context)
     {
         ArgumentNullException.ThrowIfNull(context);

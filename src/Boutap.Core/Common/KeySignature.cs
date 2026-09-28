@@ -87,7 +87,13 @@ public enum KeyMode
 /// </remarks>
 public sealed class KeySignature : IEquatable<KeySignature>
 {
-    /// <summary>Le mode par defaut quand le manifeste n'en precise aucun.</summary>
+    /// <summary>
+    /// Le mode qu'on suppose quand rien n'est dit : l'absence de suffixe vaut
+    /// majeur. C'est aussi la valeur que <c>Of</c> interpretait jusqu'alors
+    /// comme « modo majeur a imposer », ce qui transformait <c>Of("Am")</c> en
+    /// la majeur. Elle sert donc de « rien a imposer » : voir
+    /// <see cref="Of(string, KeyMode)"/>.
+    /// </summary>
     public const KeyMode DefaultMode = KeyMode.Major;
 
     private KeySignature(Letter letter, Accidental accidental, KeyMode mode)

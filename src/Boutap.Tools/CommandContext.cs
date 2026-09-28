@@ -70,4 +70,17 @@ public sealed class CommandContext
     /// <summary>Ecrit une ligne de diagnostic.</summary>
     /// <param name="message">Texte a ecrire.</param>
     public void Warn(string message) => Error.WriteLine(message);
+
+    /// <summary>
+    /// Ecrit une phrase d'explication sur la sortie d'erreur.
+    /// </summary>
+    /// <remarks>
+    /// Distinct de <see cref="Warn"/> par l'intention, pas par la sortie :
+    /// une bannière, un rappel de ce qui a été désactivé ou un résumé de
+    /// traitement ne sont pas des avertissements. C'est ce qui permet à
+    /// <c>--json</c> de laisser la sortie standard entièrement parseable :
+    /// tout ce qui n'est pas le résultat est sur l'erreur.
+    /// </remarks>
+    /// <param name="message">Texte à écrire, sans préfixe.</param>
+    public void Note(string message) => Error.WriteLine(message);
 }

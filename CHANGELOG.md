@@ -51,9 +51,61 @@ le préfixe `v` n'est pas utilisé.
 - `Boutap.Input` : conversion d'un horodatage d'evenement en temps de jeu,
   latence retenue, mesure de latence par mediane.
 - `Boutap.Tools` : l'executable `boutap` (parseur de ligne de commande maison,
-  zero dependance NuGet) avec les commandes `version`, `about`, `bench-ci`,
-  `bench-latency` et `bench-input`.
-- **194 tests** d'unite au vert.
+  zero dependance NuGet) avec les commandes `version`, `about`, `validate`,
+  `show`, `audit`, `bench-ci`, `bench-latency` et `bench-input`. Chaque
+  commande declare ses options **drapeau** : sans cela, `--json` avalait le nom
+  du pack qui le suivait.
+- **S2, format `.btp`** (`Boutap.Core/Pack/`) : modele du manifeste et de la
+  chart aligne sur `schema/*.json`, lecture et ecriture d'archive, et
+  **validateur** qui produit des codes d'erreur stables et un pointeur JSON.
+  L'ecriture est **deterministe octet pour octet** : meme contenu, meme fichier.
+- `SpdxLicenses` : liste blanche des licences de contenu (CC0-1.0, CC-BY-4.0,
+  ODbL-1.0 ; CC-BY-SA-4.0 avec avertissement), `boutap audit` refuse les autres.
+- `Audit` (`Boutap.Core/Audit/`) : verification des **profils de manette**,
+  **contrat modele ↔ schémas** (y compris une comparaison des noms *reellement
+  serialises*), et audit de l'arborescence — schemas, profils et tous les packs
+  trouves. Les fixtures volontairement invalides sont declarees attendues dans
+  `tests/data/fixtures/index.json` : l'audit verifie qu'elles echouent comme
+  annonce au lieu de compter leurs erreurs comme les siennes.
+- `tools/make-fixtures.py` (**bibliotheque standard seule**) : fabrique un WAV
+  de 20 s en arithmetique entiere et 12 packs de test (5 valides, 1 sans
+  rapport, 1 sous licence partagee, 6 volontairement invalides) plus
+  `demo.btp`. `--check` verifie que le depot contient exactement ce que la
+  fabrique produit.
+- **238 tests** d'unite au vert.
+
+### Corrigé
+
+- **Un pack écrit par `boutap` était invalide** : `PackFormat.ChartFileName`
+  oubliait l'extension `.json`, donc les charts étaient écrits sous
+  `charts/berceau` et le pack se déclarait lui-même absent de lui-même.
+- **L'audio d'un pack compressé n'était pas décodable** : la lecture d'en-tête
+  WAV s'appuyait sur `Stream.Length`, que le flux d'une entrée ZIP compressée ne
+  fournit pas. Les fixtures passaient parce que la fabrique n'utilise pas la
+  compression ; les packs écrits par l'outil, si.
+- **Le flux d'une entrée d'archive n'est pas seekable** : la sonde d'audio
+  exigeait un `Position` lisible, ce que rien ne garantit hors d'un
+  `MemoryStream`. Elle ne dépend plus que de la position courante.
+- **Les propriétés calculées partaient sur le disque** : `Note.ForceOrDefault`,
+  `Note.IsHold`, `Note.EndTime`, `Chart.LastNoteTime`, `Chart.NoteCount`
+  étaient sérialisés. Un pack réécrit depuis le modèle était refusé par le
+  validateur, et le test de contrat ne le voyait pas parce qu'il comparait des
+  listes de chaînes écrites à la main au lieu des noms émis par le sérialiseur.
+- **Le saut d'un chunk WAV ignoré pouvait avaler le `data`** : le compte
+  d'octets déjà lus était initialisé à 16 pour tous les chunks, et un chunk
+  inconnu plus court que 16 faisait disparaître les données — uniquement sur un
+  flux qu'on ne peut pas repositionner, donc uniquement sur l'audio d'un pack.
+- **Une sortie `--json` n'était pas exploitable** : les messages allaient sur la
+  sortie standard. Ils passent maintenant sur la sortie d'erreur, qui reste le
+  canal de l'humain.
+- `scripts/check-format.sh` ne pardonnait pas les tabulations des fichiers
+  Godot alors que `.editorconfig` les impose pour eux, et ignorait les
+ extensions de projet. `check-no-wallclock.sh` signalait les tests en erreur
+  alors que son commentaire promettait un avertissement, et ne connaissait pas
+  les noms réels des commandes `bench-*`. `check-mojibake.py` et les trois
+  scripts shell n'élaguaient que le `bin/` de la racine, pas celui de chacun des
+  douze projets de `src/`.
+- `.gitignore` ignorait `export_presets.cfg`, que la CI doit lire.
 
 ### Décidé
 

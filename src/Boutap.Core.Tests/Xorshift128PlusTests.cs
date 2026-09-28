@@ -203,7 +203,7 @@ public sealed class Xorshift128PlusTests
     [Fact]
     public void Aucun_System_Random_Dans_Le_Projet()
     {
-        string root = FindRepositoryRoot();
+        string root = TestPaths.RepositoryRoot;
         // Chaque motif est ecrit en toutes lettres : c'est la seule facon de
         // le detecter statiquement. Le marqueur R1-allow desarme l'alerte que
         // le script de regle emet legitement sur ces chaines.
@@ -244,21 +244,4 @@ public sealed class Xorshift128PlusTests
             + string.Join(Environment.NewLine, offences));
     }
 
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "Boutap.sln")))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException(
-            "Boutap.sln est introuvable en remontant depuis " + AppContext.BaseDirectory
-            + " : ce test ne peut pas analyser les sources.");
-    }
 }

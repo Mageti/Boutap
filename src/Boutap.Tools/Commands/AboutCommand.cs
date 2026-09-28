@@ -16,6 +16,8 @@ public sealed class AboutCommand : ICommand
     public string Usage => "boutap about";
 
     /// <inheritdoc/>
+    public IReadOnlyList<string> Flags => [];
+
     public int Run(CommandContext context)
     {
         ArgumentNullException.ThrowIfNull(context);

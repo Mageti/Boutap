@@ -38,6 +38,8 @@ public sealed class BenchInputCommand : ICommand
     public string Usage => "boutap bench-input [--json]";
 
     /// <inheritdoc/>
+    public IReadOnlyList<string> Flags => ["json"];
+
     public int Run(CommandContext context)
     {
         ArgumentNullException.ThrowIfNull(context);

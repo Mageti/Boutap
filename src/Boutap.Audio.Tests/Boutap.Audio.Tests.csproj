@@ -26,4 +26,11 @@
     <ProjectReference Include="..\Boutap.Core\Boutap.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Un seul fichier source pour les chemins de test : le dupliquer dans
+         chaque projet de test ferait diverger les repertoires d'une slice a
+         l'autre. -->
+    <Compile Include="..\Boutap.Core.Tests\TestPaths.cs" Link="TestPaths.cs" />
+  </ItemGroup>
+
 </Project>

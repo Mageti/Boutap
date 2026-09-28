@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "expectations": [
+    {
+      "file": "valid-minimal.btp",
+      "errors": 0,
+      "warnings": 0,
+      "codes": []
+    },
+    {
+      "file": "valid-complet.btp",
+      "errors": 0,
+      "warnings": 0,
+      "codes": []
+    },
+    {
+      "file": "valid-volants.btp",
+      "errors": 0,
+      "warnings": 0,
+      "codes": []
+    },
+    {
+      "file": "valid-licence-partagee.btp",
+      "errors": 0,
+      "warnings": 1,
+      "codes": [
+        "manifest.license-requires-share-alike"
+      ]
+    },
+    {
+      "file": "valid-sans-rapport.btp",
+      "errors": 0,
+      "warnings": 1,
+      "codes": [
+        "manifest.report-missing"
+      ]
+    },
+    {
+      "file": "invalid-licence.btp",
+      "min_errors": 1,
+      "codes": [
+        "manifest.license-not-allowed"
+      ]
+    },
+    {
+      "file": "invalid-notes-non-triees.btp",
+      "min_errors": 1,
+      "codes": [
+        "chart.notes-unsorted"
+      ]
+    },
+    {
+      "file": "invalid-compte-de-notes.btp",
+      "min_errors": 1,
+      "codes": [
+        "manifest.note-count-mismatch"
+      ]
+    },
+    {
+      "file": "invalid-empreinte-audio.btp",
+      "min_errors": 1,
+      "codes": [
+        "audio.hash-mismatch"
+      ]
+    },
+    {
+      "file": "invalid-graine-non-derivee.btp",
+      "min_errors": 1,
+      "codes": [
+        "manifest.seed-not-derived"
+      ]
+    },
+    {
+      "file": "invalid-champ-inconnu.btp",
+      "min_errors": 2,
+      "codes": [
+        "manifest.unknown-field",
+        "chart.unknown-field"
+      ]
+    }
+  ]
+}

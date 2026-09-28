@@ -16,7 +16,7 @@ internal static class Program
 
         try
         {
-            ParsedCommandLine parsed = CommandLine.Parse(args);
+            ParsedCommandLine parsed = CommandLine.Parse(args, CommandRegistry.FlagsOf);
             verbose = parsed.Has("verbose") || parsed.Has("debug");
 
             // « --version » et « --help » ne sont des commandes que si aucune

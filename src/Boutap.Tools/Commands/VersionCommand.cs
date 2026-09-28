@@ -16,6 +16,8 @@ public sealed class VersionCommand : ICommand
     public string Usage => "boutap version";
 
     /// <inheritdoc/>
+    public IReadOnlyList<string> Flags => [];
+
     public int Run(CommandContext context)
     {
         ArgumentNullException.ThrowIfNull(context);

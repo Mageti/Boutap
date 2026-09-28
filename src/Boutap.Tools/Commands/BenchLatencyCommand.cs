@@ -41,6 +41,8 @@ public sealed class BenchLatencyCommand : ICommand
     public string Usage => "boutap bench-latency [--json]";
 
     /// <inheritdoc/>
+    public IReadOnlyList<string> Flags => ["json"];
+
     public int Run(CommandContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
