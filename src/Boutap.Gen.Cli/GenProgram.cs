@@ -75,7 +75,7 @@ public static class GenProgram
             {
                 "analyse" => AnalyseCommand.Run(args, writer, diagnostics),
                 "generate" => GenerateCommand.Run(args, writer, diagnostics),
-                "levels" => LevelsCommand.Run(writer),
+                "levels" => LevelsCommand.Run(args, writer),
                 _ => Unknown(args[0], diagnostics),
             };
         }
@@ -123,15 +123,13 @@ public static class GenProgram
             {
                 options.DryRun = true;
             }
-            else if (argument == "--level" && i + 1 < args.Count)
+            else if (argument == "--level")
             {
-                options.Levels = [ChartLevels.Parse(args[i + 1])];
-                i++;
+                options.Levels = [ParseLevel(args, ref i)];
             }
-            else if (argument == "--seed" && i + 1 < args.Count)
+            else if (argument == "--seed")
             {
-                options.SeedHex = args[i + 1];
-                i++;
+                options.SeedHex = TakeValue(args, ref i, "--seed");
             }
             else if (!argument.StartsWith("--", StringComparison.Ordinal))
             {
@@ -145,6 +143,50 @@ public static class GenProgram
         }
 
         return options;
+    }
+
+    /// <summary>Prend la valeur d'une option, et avance sur elle.</summary>
+    /// <param name="args">Les arguments de la ligne de commande.</param>
+    /// <param name="i">Position de l'option ; avancee d'un cran.</param>
+    /// <param name="option">Le nom de l'option, pour le message d'erreur.</param>
+    /// <remarks>
+    /// Une option qui attend une valeur et n'en a pas est une faute de frappe.
+    /// La traiter comme une option inconnue — c'est-a-dire l'ignorer — faisait
+    /// qu'un « --level » nu produisait les trois niveaux sans rien dire, et
+    /// qu'un « --seed » nu laissait la graine tiree au sort. Une valeur qui
+    /// commence par deux tirets n'est pas une valeur : c'est l'option suivante.
+    /// </remarks>
+    private static string TakeValue(IReadOnlyList<string> args, ref int i, string option)
+    {
+        if (i + 1 >= args.Count || args[i + 1].StartsWith("--", StringComparison.Ordinal))
+        {
+            throw new ArgumentException($"{option} attend une valeur, et il n'y en a pas.");
+        }
+
+        i++;
+        return args[i];
+    }
+
+    /// <summary>Prend le nom d'un niveau, et avance sur lui.</summary>
+    /// <param name="args">Les arguments de la ligne de commande.</param>
+    /// <param name="i">Position de l'option ; avancee d'un cran.</param>
+    /// <remarks>
+    /// <see cref="ChartLevels.Parse"/> leve une <see cref="FormatException"/>,
+    /// que <see cref="Run"/> ne rattrape pas : sans cette conversion, un niveau
+    /// mal ecrit tuait le programme avec la pile d'appels sur l'ecran et un
+    /// code de sortie 134. Le message, lui, est deja le bon.
+    /// </remarks>
+    private static ChartLevel ParseLevel(IReadOnlyList<string> args, ref int i)
+    {
+        string name = TakeValue(args, ref i, "--level");
+        try
+        {
+            return ChartLevels.Parse(name);
+        }
+        catch (FormatException ex)
+        {
+            throw new ArgumentException(ex.Message);
+        }
     }
 
     /// <summary>Les options que toutes les commandes partagent.</summary>

@@ -15,9 +15,18 @@ namespace Boutap.Gen.Cli;
 internal static class LevelsCommand
 {
     /// <summary>Execute la commande.</summary>
+    /// <param name="args">Les arguments de la ligne de commande.</param>
     /// <param name="output">Flux de sortie.</param>
-    public static int Run(TextWriter output)
+    public static int Run(IReadOnlyList<string> args, TextWriter output)
     {
+        // « levels » etait la seule commande dont la sortie JSON existait sans
+        // etre atteinte : --json y etait declare dans l'aide commune, et la
+        // commande renvoyait quand meme le tableau lisible par un humain.
+        if (GenProgram.ReadCommon(args, 1).Json)
+        {
+            return RunJson(output);
+        }
+
         var lines = new List<string>
         {
             string.Format(CultureInfo.InvariantCulture, "{0,-10} {1,24}", "Niveau", "Subdivisions jouables"),

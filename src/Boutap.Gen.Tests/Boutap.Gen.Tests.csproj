@@ -37,4 +37,11 @@
     <Compile Include="..\Boutap.Core.Tests\TestPaths.cs" Link="TestPaths.cs" />
   </ItemGroup>
 
+  <!-- Boutap.Gen.Cli est un executable, mais son corps est dans GenProgram.Run,
+       qui prend ses deux flux en parametre : la ligne de commande se teste sans
+         lancer de processus. Aucune reference en retour, donc pas de cycle. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Boutap.Gen.Cli\Boutap.Gen.Cli.csproj" />
+  </ItemGroup>
+
 </Project>

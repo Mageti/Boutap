@@ -87,10 +87,44 @@ le préfixe `v` n'est pas utilisé.
   octet pour octet, l'empreinte de l'audio ne bouge pas, un pack à graine
   imposée passe la validation de bout en bout, et un matériau forgé ou invalide
   est refusé puis retombe sur l'empreinte.
-- **487 tests** d'unité au vert.
+- **38 tests** de la ligne de commande de `boutap-gen`, le dernier namespace
+  sans tests. Le programme entier tient dans `GenProgram.Run(args, sortie,
+  erreur)`, les deux flux étant injectables : la ligne de commande se teste
+  sans lancer de processus, et sans rendre une classe interne visible aux
+  tests. Usage, options, codes de sortie, les trois commandes sur le vrai
+  audio du pack de démonstration, sortie JSON, et le pack écrit relu par le
+  validateur. Le projet de test référence donc `Boutap.Gen.Cli`.
+- **525 tests** d'unité au vert.
 
 ### Corrigé
 
+- **`--seed` écrivait la graine dans l'empreinte de l'audio.** L'option passait
+  sa valeur là où le pipeline attendait le SHA-256 du contenu décodé : le pack
+  portait donc `audio.sha256` et `chart.audio_sha256` égaux à la graine, et
+  sortait en erreur `audio.hash-mismatch` à la validation. Le paramètre faisait
+  double emploi — provenance *et* matériau de dérivation des graines — il est
+  maintenant séparé, et le matériau imposé est inscrit dans
+  `generator.params.seed_material`. Le validateur le relit et le redérive : la
+  règle de dérivation reste vivante au lieu de devenir inerte, et aucun champ
+  du manifeste n'a eu à changer, donc pas de version de format à monter.
+- **`levels --json` sortait le tableau lisible par un humain.** La sortie JSON
+  existait, elle n'était appelée nulle part, et la commande ne lisait même pas
+  ses arguments. L'option était annoncée dans l'aide commune.
+- **`--level` suivi d'un nom inconnu tuait le programme.** L'analyse de niveau
+  lève une `FormatException`, qui n'hérite pas de l'`ArgumentException` que le
+  programme rattrape : on obtenait la pile d'appels sur l'écran et le code de
+  sortie 134. Le message, lui, était déjà le bon ; c'est sa traduction en
+  erreur d'usage qui manquait.
+- **`--level` et `--seed` sans valeur étaient ignorés en silence.** Un
+  `--level` nu produisait les trois niveaux et sortait 0 ; un `--seed` nu
+  laissait la graine tirée au sort. Une option qui attend une valeur et n'en a
+  pas est une faute de frappe, pas une option inconnue.
+- **L'identifiant du pack dépendait du dossier de travail.** Quand le nom du
+  fichier ne laissait pas trois caractères lisibles, le repli prenait une
+  empreinte du *chemin absolu*. Le même fichier placé ailleurs, ou sur une
+  autre machine, produisait donc un autre identifiant, donc un autre pack à
+  contenu égal — ce qu'interdit la règle R1 et ce que promettait le commentaire
+  de la classe elle-même. Le repli porte maintenant sur le nom de fichier.
 - **Le score local de battement valait exactement zéro.** La formule de la
   spec (`generateur.md` §4.7.2), `somme des bandes moins leur moyenne`, se
   soustrait à chaque bande la moyenne de ces mêmes bandes : elle vaut zéro pour

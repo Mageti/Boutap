@@ -14,9 +14,11 @@ namespace Boutap.Gen.Cli;
 /// <remarks>
 /// Le manifeste exige <c>^[a-z0-9][a-z0-9_-]{2,63}$</c>. Un nom de fichier
 /// contient des espaces, des accents et parfois des points, on le replie donc.
-/// Si le nom ne laisse rien, on tombe sur une empreinte du chemin : deux
-/// machines qui nomment le fichier autrement obtiennent deux packs differents,
-/// ce qui est honnete puisque le contenu, lui, n'a pas change.
+/// Si le nom ne laisse rien, on tombe sur une empreinte du nom de fichier, et
+/// non du chemin : un chemin absolu change selon la machine et selon le dossier
+/// de travail, donc le meme fichier place ailleurs aurait produit un autre
+/// identifiant, donc un autre pack, a contenu egal. Le nom, lui, est ce que
+/// l'utilisateur a choisi : c'est la seule chose qui le decrive partout.
 /// </remarks>
 internal static class Identifier
 {
@@ -40,7 +42,7 @@ internal static class Identifier
             return builder.ToString();
         }
 
-        return "pack-" + Sha(path);
+        return "pack-" + Sha(Path.GetFileName(path));
     }
 
     private static void Append(StringBuilder builder, char raw)
@@ -61,9 +63,9 @@ internal static class Identifier
         }
     }
 
-    private static string Sha(string path)
+    private static string Sha(string name)
     {
-        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(path)));
+        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(name));
         return Convert.ToHexString(hash, 0, 8).ToLowerInvariant();
     }
 }
