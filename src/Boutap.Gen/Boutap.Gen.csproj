@@ -9,4 +9,11 @@
     <RootNamespace>Boutap.Gen</RootNamespace>
     <AssemblyName>Boutap.Gen</AssemblyName>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Le modele de pack, pour ecrire la graine, la version et la tonalite
+         trouvees dans le manifeste. Sans cela, Boutap.Gen ne pourrait pas
+         produire un pack, seulement des nombres. -->
+    <ProjectReference Include="..\Boutap.Core\Boutap.Core.csproj" />
+  </ItemGroup>
 </Project>

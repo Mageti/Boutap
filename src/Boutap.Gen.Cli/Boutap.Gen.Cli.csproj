@@ -1,0 +1,22 @@
+<!--
+  SPDX-FileCopyrightText: Boutap contributors
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  boutap-gen — l'executable du generateur. Ce projet est separe de Boutap.Gen
+  pour que la bibliotheque reste une bibliotheque : Boutap.Tools la reference,
+  et un programme executable dans une bibliotheque force a deviner quel point
+  d'entree le runtime doit choisir.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Boutap.Gen.Cli</RootNamespace>
+    <AssemblyName>boutap-gen</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Boutap.Gen\Boutap.Gen.csproj" />
+    <ProjectReference Include="..\Boutap.Audio\Boutap.Audio.csproj" />
+    <ProjectReference Include="..\Boutap.Core\Boutap.Core.csproj" />
+  </ItemGroup>
+</Project>

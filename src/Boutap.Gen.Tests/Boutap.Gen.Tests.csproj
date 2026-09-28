@@ -26,4 +26,15 @@
     <ProjectReference Include="..\Boutap.Core\Boutap.Core.csproj" />
   </ItemGroup>
 
+  <!-- Boutap.Audio n'est pas une dependance de Boutap.Gen : seul le test en a
+       besoin, pour sortir l'audio du pack de demonstration sans dupliquer le
+       WAV dans les donnees de test. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Boutap.Audio\Boutap.Audio.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Boutap.Core.Tests\TestPaths.cs" Link="TestPaths.cs" />
+  </ItemGroup>
+
 </Project>
