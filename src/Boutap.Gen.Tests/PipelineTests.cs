@@ -286,6 +286,75 @@ public class PipelineTests
         Assert.All(result.Drafts, draft => Assert.InRange(Pipeline.DifficultyRating(draft), 1, 20));
     }
 
+    /// <summary>
+    /// Le terme de rafale pese un quart de la note, et il doit donc pouvoir
+    /// atteindre cette part. Il ne le pouvait pas : la rafale se comptait sur
+    /// 100 ms, fenetre que la regle de lisibilite L5 borne a quatre notes, et
+    /// le resultat etait divise par 32. Le terme plafonnait donc a 4/32, soit
+    /// 3,1 % de la note finale, et les 96,9 % restants ne disaient rien du
+    /// tout. Deux de ces partitions, mesurees :
+    /// </summary>
+    [Fact]
+    public void Une_rafale_dense_rend_le_morceau_plus_difficile_que_les_memes_notes_reparties()
+    {
+        // Seize notes, dont quatre a cinquante millisecondes les une des
+        // autres tous les trois secondes : c'est le plafond de L5, quatre
+        // notes dans 100 ms, et rien de plus.
+        List<double> dense = [];
+        for (int group = 0; group < 4; group++)
+        {
+            for (int inside = 0; inside < 4; inside++)
+            {
+                dense.Add((group * 3.0) + (inside * 0.05));
+            }
+        }
+
+        ChartDraft bunched = Draft(dense);
+        ChartDraft spread = Draft([.. Enumerable.Range(0, 16).Select(index => index * 0.8)]);
+
+        // Quatre notes dans la meme seconde contre deux. Mesure : 7 sur 20
+        // pour la premiere, 4 sur 20 pour la seconde. L'ancien calcul, sur
+        // 100 ms et divise par 32, voyait 3 et 1 : il ne distinguait presque
+        // rien, et son plafond de 3,1 % rendait l'ecart invisible.
+        Assert.Equal(4, Pipeline.DifficultyRating(spread));
+        Assert.Equal(7, Pipeline.DifficultyRating(bunched));
+    }
+
+    /// <summary>
+    /// Le meme nombre de notes, mais une par temps a 120 BPM, doit rester
+    /// un morceau facile : c'est le morceau de reference du dépôt, et le
+    /// generateur en sort 33 notes a la note 5 sur 20.
+    /// </summary>
+    [Fact]
+    public void Une_note_par_temps_reste_un_morceau_facile()
+    {
+        ChartDraft steady = Draft([.. Enumerable.Range(0, 38).Select(index => index * 0.5)]);
+
+        Assert.Equal(5, Pipeline.DifficultyRating(steady));
+    }
+
+    /// <summary>
+    /// Le terme de rafale doit encore s'etcher sur toute l'echelle de la
+    /// note, pas seulement au plancher. Neuf notes dans la meme seconde
+    /// sont injouables, et la note doit le dire : 16 sur 20.
+    /// </summary>
+    [Fact]
+    public void Une_seconde_entierement_remplie_sature_le_terminal_de_rafale()
+    {
+        ChartDraft wall = Draft([.. Enumerable.Range(0, 9).Select(index => index * 0.1)]);
+
+        Assert.Equal(16, Pipeline.DifficultyRating(wall));
+    }
+
+    private static ChartDraft Draft(IReadOnlyList<double> times)
+    {
+        List<Note> notes = times
+            .Select((time, index) => Note.Tap(time, KeyBinding.Grid(index % 9)))
+            .ToList();
+
+        return new ChartDraft(ChartLevel.Ronde, notes, [], [], StrainCurve.Compute(notes));
+    }
+
     [Fact]
     public void Le_pic_de_notes_par_seconde_compte_la_seconde_la_plus_dense()
     {

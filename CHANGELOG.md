@@ -18,6 +18,11 @@ le préfixe `v` n'est pas utilisé.
 
 ### Ajouté
 
+- **3 tests sur la note de difficulté**, qui vérifient que le terme de rafale
+  pèse enfin un quart de la note : la même charge de seize notes notée 7 sur
+  20 quand elle est en rafales et 4 sur 20 quand elle est répartie, une note
+  par temps à 120 BPM qui reste à 5, et neuf notes dans une seconde qui
+  saturent à 16.
 - **7 tests de la ligne de commande de `boutap-gen`**, sur les options
   inconnues : un `--tempo`, un `--levl` (transposition de `--level`), une option
   refusée par chacune des trois commandes, la cible de `generate` qui n'est
@@ -99,10 +104,18 @@ le préfixe `v` n'est pas utilisé.
   tests. Usage, options, codes de sortie, les trois commandes sur le vrai
   audio du pack de démonstration, sortie JSON, et le pack écrit relu par le
   validateur. Le projet de test référence donc `Boutap.Gen.Cli`.
-- **532 tests** d'unité au vert.
+- **535 tests** d'unité au vert.
 
 ### Corrigé
 
+- **La note de difficulté ignorait presque ses rafales.** Le terme pèse 25 %
+  du score, mais il comptait les notes dans une fenêtre de 100 ms, que la règle
+  de lisibilité L5 borne à quatre notes, et il divisait par 32 : il plafonnait
+  donc à 3,1 % de la note finale. Sur le morceau de démonstration il en pesait
+  0,8 %. La fenêtre passe à une seconde et le diviseur à 8, ce qui rend le
+  terme mesurable ; la note du morceau de démonstration passe de 4 à 5 sur 20.
+  **Une note de difficulté n'est pas comparable à celles des packs écrits
+  avant cette correction.**
 - **Une option inconnue était ignorée en silence.** Tout argument commençant par
   un tiret qui n'était pas reconnu tombait à la fin de la boucle de lecture :
   `generate piste.wav -o p.btp --tempo 100` sortait 0 en ignorant `--tempo`, et

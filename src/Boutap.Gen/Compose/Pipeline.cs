@@ -267,6 +267,28 @@ public static class Pipeline
         return Math.Round(peak / 10.0, 3, MidpointRounding.AwayFromZero);
     }
 
+    /// <summary>
+    /// Fenetre, en secondes, dans laquelle on cherche la rafale la plus dense.
+    /// </summary>
+    /// <remarks>
+    /// C'est la fenetre du <em>terme de difficulte</em>, pas celle de
+    /// <see cref="PeakLoad"/> : la charge se lit sur 100 ms parce qu'elle
+    /// pese une note a ce moment-la, la rafale se lit sur une seconde
+    /// parce qu'elle enchaine les notes. Les confondre donnait un terme
+    /// plafonne a 4/32, donc a 3,1 % de la note, alors qu'il en pese 25 %.
+    /// La fenetre de 100 ms ne peut pas contenir plus de quatre notes :
+    /// la regle de lisibilite L5 l'interdit, et lissage puis simulation
+    /// l'appliquent avant le calcul.
+    /// </remarks>
+    private const double BurstWindowSeconds = 1.0;
+
+    /// <summary>
+    /// Nombre de notes en une seconde qui vaut la rafale maximale, donc
+    /// terme plein. La regle L5 en autorise quatre en 100 ms ; a l'echelle
+    /// d'une seconde cela laisse largement de la place avant la saturation.
+    /// </summary>
+    private const double BurstReference = 8.0;
+
     /// <summary>Note de difficulte de 1 a 20 (wiki: generateur.md §9.2).</summary>
     public static int DifficultyRating(ChartDraft draft)
     {
@@ -279,7 +301,7 @@ public static class Pipeline
 
         double averageNps = draft.Notes.Count / Math.Max(0.001, LastTime(draft.Notes));
         double peakNps = Math.Min(1.0, PeakNotesPerSecond(draft.Notes) / 20.0);
-        double burst = Math.Min(1.0, LongestBurst(draft.Notes) / 32.0);
+        double burst = Math.Min(1.0, LongestBurst(draft.Notes) / BurstReference);
         double strain = Math.Min(1.0, draft.Strain.Peak / 12.0);
 
         // Les quatre termes pèsent 0,35 + 0,20 + 0,25 + 0,20, soit 1 : la
@@ -306,7 +328,7 @@ public static class Pipeline
         double windowStart = 0;
         foreach (Note note in notes)
         {
-            if (current == 0 || note.Time - windowStart > 0.1)
+            if (current == 0 || note.Time - windowStart > BurstWindowSeconds)
             {
                 windowStart = note.Time;
                 current = 0;
