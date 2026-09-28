@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: Boutap contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# Ce qui n'a pas besoin d'entrer dans l'image.
+#
+# Le contexte de construction est le depot entier. Sans cette liste, chaque
+# construction enverrait des caches, des fichiers de verification et des
+# archives de test pour ne pas les copier.
+
+.git/
+.codenomad/
+.cache/
+
+# Artefacts de compilation : l'image les reconstruit elle-meme.
+**/bin/
+**/obj/
+build/
+dist/
+out/
+TestResults/
+**/TestResults/
+**/*.user
+**/*.suo
+
+# Donnees volumineuses et regenerables.
+# tests/data/ est explicitement conserve : les assertions de « boutap audit »
+# portent sur les packs de fixtures, et une image incapable de verifier sa
+# propre sortie ne sert a rien.
+
+# Fichiers de l'editeur.
+.vs/
+.vscode/
+.idea/
+*.swp
+
+# Documentation et gouvernance : utile a lire, inutile a compiler.
+*.md
+LICENSE

@@ -8,9 +8,14 @@
 **Un jeu de rythme à neuf touches et deux volants. Tu y mets ta musique, il en sort
 une partition jouable.**
 
-> **Statut : très tôt. Le code n'existe pas encore.**
-> Ce dépôt ne contient que le code, l'outillage et la gouvernance. Toute la conception
-> est dans le wiki : **[wiki.mageti.fr/idees/boutap/](https://wiki.mageti.fr/idees/boutap/)**
+> **Statut : V0.1 en construction.** Le format `.btp`, l'outillage en ligne de commande
+> et la coque du jeu existent et sont testés ; le générateur et la lecture réelle
+> des notes ne sont pas encore écrits. Toute la conception est dans le wiki :
+> **[wiki.mageti.fr/idees/boutap/](https://wiki.mageti.fr/idees/boutap/)**
+>
+> Ce qui est fait, et ce qui ne l'est pas, est écrit noir sur blanc dans le
+> [`CHANGELOG.md`](CHANGELOG.md). Aucun de ces deux textes ne prétend que le
+> projet est plus avancé qu'il ne l'est.
 
 ---
 
@@ -96,6 +101,103 @@ Un clone de manette, un clavier, une manette de jeu — trois fichiers dans `pro
 
 ---
 
+## Compiler Boutap
+
+### Le chemin court : Docker, et rien d'autre
+
+**Le seul prérequis est Docker.** Ni .NET, ni Godot, ni Python à installer. Tout
+le reste est dans les images du dépôt.
+
+```bash
+git clone https://github.com/<votre-org>/boutap.git
+cd boutap
+
+./scripts/ci.sh            # tout : vérifications, compilation, tests, exports
+./scripts/dev.sh            # un terminal dans le conteneur de développement
+```
+
+`./scripts/dev.sh` ouvre un shell dans lequel `dotnet test`, `dotnet build` et
+`boutap` fonctionnent comme sur n'importe quel poste .NET. Sans argument, il
+exécute la commande que vous lui donnez :
+
+```bash
+./scripts/dev.sh dotnet test Boutap.sln
+./scripts/dev.sh dotnet run --project src/Boutap.Tools -- audit --warn .
+```
+
+| Script | Ce qu'il fait | Image |
+|---|---|---|
+| `./scripts/dev.sh` | Compile et teste. Terminal interactif si sans argument. | `boutap-dev` |
+| `./scripts/ci.sh` | Tout vérifier, comme le ferait la CI. `--fast` saute les exports. | `dev` + `export` |
+| `./scripts/export.sh` | Les quatre exécutables du jeu, dans `build/`. | `boutap-export` |
+| `./scripts/probe.sh` | L'environnement Python de la sonde, puis un script de mesure. | `boutap-probe` |
+
+Les images ne sont construites qu'une fois. Pour forcer la reconstruction :
+
+```bash
+./scripts/dev.sh --rebuild
+BOUTAP_REBUILD=1 ./scripts/ci.sh
+```
+
+### Le chemin long : sans Docker
+
+Si vous préférez compiler sur votre propre machine, il vous faut :
+
+| Outil | Version | Pourquoi |
+|---|---|---|
+| [.NET SDK](https://dotnet.microsoft.com/download) | 8.0.4xx | Constraint par `global.json`. |
+| [Godot](https://godotengine.org/download) **mono** | 4.3-stable | La version **mono**, pas la version standard : un projet Godot C# ne compile pas avec l'autre. |
+| Gabarits d'export Godot **mono** | 4.3.stable.mono | `Godot_v4.3-stable_mono_export_templates.tpz`. Sans eux, aucun export. |
+| Python | 3.11+ | Uniquement pour les vérifications et la fabrique de fixtures. |
+
+```bash
+dotnet restore
+dotnet build --configuration Release
+dotnet test Boutap.sln --configuration Release
+```
+
+La coque Godot se compile à part, parce qu'elle impose son propre SDK et que la
+racine ne doit porter qu'une seule solution :
+
+```bash
+dotnet build game/Boutap.Shell.csproj --configuration Debug
+godot --headless --path game --export-release linux-x86_64 ../build/linux-x86_64
+```
+
+> Sous Windows, la voie la plus simple reste WSL 2 avec Docker. La compilation
+> directe sous Windows est vérifiée par la CI, mais sans elle, un conteneur est
+> la seule garantie que « ça marche chez moi » veut dire la même chose partout.
+
+### Ce que fait la vérification, et pourquoi
+
+`./scripts/ci.sh` exécute cinq choses, dans cet ordre. Chacune peut échouer
+seule, et aucune n'est un « au moins un test qui passe ».
+
+| Étape | Ce qu'elle attrape |
+|---|---|
+| `check-mojibake.py` | Un caractère accentué qui a viré en CJK à la copier-coller. |
+| `check-no-wallclock.sh` | Règle C4 : une décision de jeu qui lirait l'heure du système. |
+| `check-licenses.sh` | Un fichier source sans en-tête SPDX, ou sous la mauvaise licence. |
+| `check-format.sh` | CRLF, BOM, tabulations, espaces en fin de ligne, saut de ligne final manquant. |
+| `make-fixtures.py --check` | Un fichier binaire de test modifié à la main. |
+| `dotnet test` | 294 tests, dont les huit imposés par l'ADR 0005. |
+| `boutap audit` | Un pack, un profil ou un schéma non conforme. |
+
+### Les caches
+
+Les caches (NuGet, Godot, dossiers personnels) sont écrits **hors du dépôt**,
+par défaut sous `${XDG_CACHE_HOME:-$HOME/.cache}/boutap`. Ils n'apparaissent donc
+jamais dans `git status` et ne sont jamais commités par accident.
+
+```bash
+BOUTAP_CACHE=/mnt/gros-disque ./scripts/ci.sh
+```
+
+Les conteneurs tournent avec votre uid, pas avec celui de `root`. Aucun fichier
+que vous ne pouvez pas supprimer n'est produit dans le dépôt.
+
+---
+
 ## Contribuer
 
 Tout est détaillé dans [`CONTRIBUTING.md`](CONTRIBUTING.md). En résumé :
@@ -111,6 +213,7 @@ Tout est détaillé dans [`CONTRIBUTING.md`](CONTRIBUTING.md). En résumé :
 ```bash
 git clone https://github.com/<votre-org>/boutap.git
 cd boutap
+./scripts/dev.sh          # un terminal de compilation, sans rien installer
 # puis lire le wiki : https://wiki.mageti.fr/idees/boutap/
 ```
 

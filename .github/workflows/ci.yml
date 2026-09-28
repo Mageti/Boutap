@@ -1,15 +1,21 @@
 # SPDX-FileCopyrightText: Boutap contributors
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Boutap — Intégration continue.
+# Boutap — Integration continue.
 #
-# Trois idées derrière ce fichier :
-#   1. La CI vérifie les CINQ règles de code de wiki: spec.md §7.3. Pas
-#      « au moins un test qui passe » : les règles elles-mêmes.
-#   2. Linux ET Windows sur chaque PR. Le projet promet la parité stricte ;
-#      une CI qui ne teste qu'un seul système rend cette promesse invérifiable.
-#   3. Aucun test qui ment. Un test instable est marqué Skip avec un motif
-#      écrit, jamais « on le désactive ».
+# Cinq idees derriere ce fichier :
+#   1. La CI verifie les CINQ regles de code de wiki: spec.md 7.3. Pas
+#      « au moins un test qui passe » : les regles elles-memes.
+#   2. Linux ET Windows sur chaque PR. Le projet promet la parite stricte ;
+#      une CI qui ne teste qu'un seul systeme rend cette promesse unverifiable.
+#   3. Aucun test qui ment. Un test instable est marque Skip avec un motif
+#      ecrit, jamais « on le desactive ».
+#   4. La compilation est verifiee par le chemin documente. Le job « docker »
+#      ne rejoue pas la CI a la main : il lance scripts/ci.sh, celui que le
+#      README demande au developpeur d'utiliser. Un chemin documente qui casse
+#      est un bug, pas une divergence acceptable.
+#   5. Tout binaire telecharge est verifie. Un editeur ou un SDK sans somme de
+#      controle n'est pas un outil de compilation, c'est une hypothese.
 
 name: CI
 
@@ -20,7 +26,7 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Une PR n'est pas annulée par un nouveau push : ça évite de consommer
+# Une PR n'est pas annulee par un nouveau push : ca evite de consommer
 # des minutes pour rien quand quelqu'un pousse cinq fois de suite.
 concurrency:
   group: ci-${{ github.ref }}
@@ -32,31 +38,37 @@ permissions:
 env:
   DOTNET_VERSION: '8.0.x'
   GODOT_VERSION: '4.3-stable'
-  # Le dossier de travail des tests, isolé pour ne pas salir le dépôt.
+  # Un projet Godot C# exige le binaire MONO et les gabarits MONO. Le binaire
+  # standard refuse de compiler, et les gabarits standard ne sont pas
+  # installables dans une image mono : l'editeur announce alors « no export
+  # template found ».
+  #
+  # Sommes de controle publiees par Godot dans SHA512-SUMS.txt pour la release
+  # 4.3-stable. Il n'existe pas de SHA256-SUMS.txt pour cette release.
+  GODOT_EDITOR_SHA512_LINUX: '33d0539bc368ff6f30b5f15d64ec893da8639bd607df83050b5df746c3d30da99238c26dd03a16d7fe31b3a3e58680aeb5545af8784d8ce01edeff07b061ac80'
+  GODOT_EDITOR_SHA512_WINDOWS: '6fc1c187d7047d6b0a89e5e4495a63eb70a88209b7f283048f3b3d84d64047bc3addd7cfcb9a67a74441faea19dd8c465456b917cd9c3fc07f2131ee832e6e1e'
+  GODOT_TEMPLATES_SHA512: '76796c1df810ecf351b48f303e5525100597be48043d3206bab7c44bd0bc576fb944b4b788619eb9848c31b4245ae0df6f3d665e63d4a083f6dae829919e8e8d'
+  # Le dossier de travail des tests, isole pour ne pas salir le depot.
   TEST_TMP: ${{ github.workspace }}/.tmp-tests
 
 jobs:
   # ---------------------------------------------------------------------------
-  # 1. Vérifications statiques — rapides, sans .NET, sur les deux systèmes.
+  # 1. Verifications statiques — rapides, sans .NET, sur les deux systemes.
   # ---------------------------------------------------------------------------
   static:
-    name: Vérifications statiques (${{ matrix.os }})
+    name: Verifications statiques (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Aucun caractère parasite
+      - name: Aucun caractere parasite
         run: python3 scripts/check-mojibake.py
 
-      - name: Règle R1 — aucune horloge murale
+      - name: Regle R1 — aucune horloge murale
         shell: bash
         run: ./scripts/check-no-wallclock.sh
 
-      - name: En-têtes de licence SPDX
+      - name: En-tetes de licence SPDX
         shell: bash
         run: ./scripts/check-licenses.sh
 
@@ -64,7 +76,7 @@ jobs:
         shell: bash
         run: ./scripts/check-format.sh
 
-      - name: JSON valide (schémas et profils)
+      - name: JSON valide (schemas et profils)
         shell: bash
         run: |
           for f in schema/*.json profiles/*.json; do
@@ -72,7 +84,7 @@ jobs:
               || { echo "::error file=$f::JSON invalide"; exit 1; }
           done
 
-      - name: Les 5 profils livrés sont présents
+      - name: Les 5 profils livres sont presents
         shell: bash
         run: |
           missing=0
@@ -81,8 +93,15 @@ jobs:
           done
           exit $missing
 
+      - name: Les fixtures sont reproductibles
+        # Un fichier binaire genere a la main est un fichier qu'on ne peut plus
+        # regenerer. Comparer le contenu a la fabrique est le seul controle qui
+        # distingue « le depot est a jour » de « le depot contient du mystere ».
+        shell: bash
+        run: python3 tools/make-fixtures.py --check
+
   # ---------------------------------------------------------------------------
-  # 2. Compilation et tests .NET — le cœur.
+  # 2. Compilation et tests .NET — le coeur.
   # ---------------------------------------------------------------------------
   test:
     name: Tests (${{ matrix.os }})
@@ -115,6 +134,15 @@ jobs:
             --results-directory "$TEST_TMP" \
             --logger "trx;LogFileName=tests.trx"
 
+      # La mise en forme est uneverification, pas une opinion. Elle ne bloque
+      # pas encore : tant que le code n'a pas ete passe une fois en entier, la
+      # rendre bloquante ne signalerait qu'un ecart de forme deja connu, et
+      # ferait echouer des PR sur un detail cosmétique. Passee une fois, cette
+      # etape passe a continuation-on-error: false.
+      - name: Mise en forme
+        continue-on-error: true
+        run: dotnet format Boutap.sln --verify-no-changes --verbosity minimal
+
       - name: Rapport de couverture
         if: always()
         shell: pwsh
@@ -129,7 +157,7 @@ jobs:
             "Aucun rapport de couverture produit."
           }
 
-      - name: Publier le rapport en cas d'échec
+      - name: Publier le rapport en cas d'echec
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -138,7 +166,7 @@ jobs:
           retention-days: 7
 
   # ---------------------------------------------------------------------------
-  # 3. Export Godot — vérifie que le jeu se construit pour les 4 cibles.
+  # 3. Export Godot — verifie que le jeu se construit pour les 4 cibles.
   # ---------------------------------------------------------------------------
   export:
     name: Export Godot (${{ matrix.os }})
@@ -155,33 +183,66 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Installer Godot ${{ env.GODOT_VERSION }}
+      - name: Installer Godot ${{ env.GODOT_VERSION }} (mono)
         shell: bash
         env:
           GODOT_RELEASE: ${{ env.GODOT_VERSION }}
+          GODOT_TEMPLATES_SHA512: ${{ env.GODOT_TEMPLATES_SHA512 }}
+          GODOT_EDITOR_SHA512_LINUX: ${{ env.GODOT_EDITOR_SHA512_LINUX }}
+          GODOT_EDITOR_SHA512_WINDOWS: ${{ env.GODOT_EDITOR_SHA512_WINDOWS }}
         run: |
           set -euo pipefail
-          base="https://github.com/godotengine/godot/releases/download"
+          # « $GODOT_RELEASE-stable-stable » etait un 404 : la release
+          # s'appelle deja « 4.3-stable », le suffixe n'a pas a ete ajoute.
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_RELEASE}"
           if [ "${RUNNER_OS}" = "Linux" ]; then
-            url="$base/${GODOT_RELEASE%/*}-stable/Godot_v${GODOT_RELEASE%/*}-stable_linux.x86_64.zip"
-            dest="$HOME/godot.zip"
+            asset="Godot_v${GODOT_RELEASE}_mono_linux_x86_64.zip"
+            expected="$GODOT_EDITOR_SHA512_LINUX"
+            templates_dir="${HOME}/.local/share/godot/export_templates/4.3.stable.mono"
           else
-            url="$base/${GODOT_RELEASE%/*}-stable/Godot_v${GODOT_RELEASE%/*}-stable_win64.exe.zip"
-            dest="$HOME/godot.zip"
+            asset="Godot_v${GODOT_RELEASE}_mono_win64.zip"
+            expected="$GODOT_EDITOR_SHA512_WINDOWS"
+            templates_dir="${APPDATA}/Godot/export_templates/4.3.stable.mono"
           fi
-          wget -q -O "$dest" "$url"
-          unzip -q -o "$dest" -d "$HOME/godot"
+
+          curl --fail --location --retry 3 -o "$HOME/editor.zip" "${base}/${asset}"
+          printf '%s  %s\n' "$expected" "$HOME/editor.zip" | sha512sum --check --strict -
+          unzip -q -o "$HOME/editor.zip" -d "$HOME/godot"
           binary=$(find "$HOME/godot" -type f -name 'Godot*' -size +10M | head -1)
           echo "GODOT_BIN=$binary" >> "$GITHUB_ENV"
           "$binary" --version
+
+          # Les gabarits, eux, sont necessaires des le premier export : sans
+          # eux, l'editeur echoue en cherchant un fichier .exe ou .x86_64 a
+          # empailleter. Le nom de dossier porte « mono » pour la meme raison
+          # que le binaire.
+          curl --fail --location --retry 3 -o "$HOME/templates.tpz" \
+            "${base}/Godot_v${GODOT_RELEASE}_mono_export_templates.tpz"
+          printf '%s  %s\n' "$GODOT_TEMPLATES_SHA512" "$HOME/templates.tpz" | sha512sum --check --strict -
+          mkdir -p "$templates_dir"
+          unzip -q -o "$HOME/templates.tpz" -d "$HOME/templates"
+          cp -r "$HOME/templates/templates/." "$templates_dir/"
+
+      - name: Compiler la coque Godot (Debug)
+        # L'editeur ne trouve pas l'assembly d'un projet compile uniquement en
+        # Release : il affiche « Cannot instantiate C# script because the
+        # associated class could not be found », qui parle de runtime et fait
+        # chercher le probleme au mauvais endroit.
+        run: dotnet build game/Boutap.Shell.csproj --configuration Debug
 
       - name: Exporter les cibles
         shell: bash
         run: |
           set -euo pipefail
           for preset in linux-x86_64 linux-arm64 windows-x86_64 portable-windows; do
-            "$GODOT_BIN" --headless --path . --export-release "$preset" \
-              || { echo "::error::export '$preset' en échec"; exit 1; }
+            # Godot ne cree pas le dossier de sortie et ne dit pas quel preset
+            # est en cause quand il manque.
+            mkdir -p "build/$preset"
+            # --path game : le projet Godot est dans game/. A la racine, il
+            # n'y a qu'une seule solution, pour que « dotnet build » sans
+            # argument fonctionne des deux cotes.
+            "$GODOT_BIN" --headless --path game --export-release "$preset" "../build/$preset" \
+              || { echo "::error::export '$preset' en echec"; exit 1; }
           done
 
       - name: Taille des artefacts
@@ -213,14 +274,14 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Construire l'outil en ligne de commande
-        run: dotnet build src/Boutap.Tools/Boutap.Tools.csproj --configuration Release
-
-      - name: Audit du dépôt
-        shell: bash
+      - name: Restaurer et construire
         run: |
-          set -euo pipefail
-          dotnet run --project src/Boutap.Tools --configuration Release -- audit --warn .
+          dotnet restore
+          dotnet build src/Boutap.Tools/Boutap.Tools.csproj --configuration Release
+
+      - name: Audit du depot
+        shell: bash
+        run: dotnet run --project src/Boutap.Tools --configuration Release --no-build -- audit --warn .
 
       - name: Registre des assets tiers complet
         shell: bash
@@ -238,15 +299,41 @@ jobs:
           echo "Registre complet."
 
   # ---------------------------------------------------------------------------
-  # 5. Le contrôle final, qui doit être vert pour merger.
+  # 5. Le chemin de compilation documente — le meme que celui du developpeur.
+  # ---------------------------------------------------------------------------
+  docker:
+    name: Compilation dans Docker
+    runs-on: ubuntu-latest
+    needs: [static]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Ce job existe pour une raison precise : les scripts de scripts/*.sh
+      # sont la maniere dont le projet promet de se compiler. S'ils cassent,
+      # ce n'est pas « la CI a un souci », c'est le produit qui est casse pour
+      # quelqu'un qui n'a pas .NET d'installe. On lance donc le script, pas une
+      # reimplementation de lui.
+      - name: Tout compiler et tester dans les conteneurs
+        run: ./scripts/ci.sh
+
+      - name: Publier les exports produits par le conteneur
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exports-docker
+          path: build/
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # 6. Le controle final, qui doit etre vert pour merger.
   # ---------------------------------------------------------------------------
   gate:
     name: Porte de fusion
     runs-on: ubuntu-latest
     if: always()
-    needs: [static, test, export, assets]
+    needs: [static, test, export, assets, docker]
     steps:
-      - name: Vérifier tous les jobs
+      - name: Verifier tous les jobs
         shell: bash
         run: |
           set -euo pipefail
@@ -254,9 +341,10 @@ jobs:
           echo "test     : ${{ needs.test.result }}"
           echo "export   : ${{ needs.export.result }}"
           echo "assets   : ${{ needs.assets.result }}"
-          for job in static test export assets; do
+          echo "docker   : ${{ needs.docker.result }}"
+          for job in static test export assets docker; do
             if [ "${{ needs.$job.result }}" != "success" ]; then
-              echo "::error::le job '$job' n'a pas réussi"
+              echo "::error::le job '$job' n'a pas reussi"
               exit 1
             fi
           done
