@@ -18,6 +18,11 @@ le préfixe `v` n'est pas utilisé.
 
 ### Ajouté
 
+- **7 tests de la ligne de commande de `boutap-gen`**, sur les options
+  inconnues : un `--tempo`, un `--levl` (transposition de `--level`), une option
+  refusée par chacune des trois commandes, la cible de `generate` qui n'est
+  acceptée que par elle, deux `--level` successifs dont le dernier gagne, et le
+  tiret seul qui reste un nom de fichier et non une option.
 - **Spec complète** (`wiki: spec.md`, 21 sections) : concept, règles de jeu,
   générateur, format `.btp`, architecture, audio, latence, interface,
   accessibilité, propriété intellectuelle, licence, plan S0–S9, risques,
@@ -94,9 +99,23 @@ le préfixe `v` n'est pas utilisé.
   tests. Usage, options, codes de sortie, les trois commandes sur le vrai
   audio du pack de démonstration, sortie JSON, et le pack écrit relu par le
   validateur. Le projet de test référence donc `Boutap.Gen.Cli`.
-- **525 tests** d'unité au vert.
+- **532 tests** d'unité au vert.
 
 ### Corrigé
+
+- **Une option inconnue était ignorée en silence.** Tout argument commençant par
+  un tiret qui n'était pas reconnu tombait à la fin de la boucle de lecture :
+  `generate piste.wav -o p.btp --tempo 100` sortait 0 en ignorant `--tempo`, et
+  rien dans la sortie ne permettait de le remarquer. Une option inconnue est
+  presque toujours une faute de frappe, et une faute de frappe doit se voir :
+  elle est maintenant refusée avec le code 2, en nommant l'option et en
+  renvoyant vers `--help`. Les options propres à une commande sont déclarées
+  par elle, ce qui laisse `-o` et `--output` à `generate` seul.
+- **La note de difficulté calculait une charge qu'elle n'utilisait pas.** Le
+  facteur « charge » était calculé puis jeté. Il ne manquait pas de terme : les
+  quatre poids de la formule font bien 1, et la charge est déjà publiée telle
+  quelle dans le champ `peak_load` du manifeste, où on peut la lire. Le calcul
+  inutile a été supprimé.
 
 - **`--seed` écrivait la graine dans l'empreinte de l'audio.** L'option passait
   sa valeur là où le pipeline attendait le SHA-256 du contenu décodé : le pack

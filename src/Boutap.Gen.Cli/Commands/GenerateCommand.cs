@@ -25,7 +25,10 @@ internal static class GenerateCommand
     /// <param name="diagnostics">Flux d'erreur.</param>
     public static int Run(IReadOnlyList<string> args, TextWriter output, TextWriter diagnostics)
     {
-        GenProgram.CommonOptions options = GenProgram.ReadCommon(args, 1);
+        // -o et --output n'appartiennent qu'a cette commande : ReadCommon doit
+        // les tolérer sans les manger, sinon il les prendrait pour des
+        // positionnels et les perdrait.
+        GenProgram.CommonOptions options = GenProgram.ReadCommon(args, 1, "-o", "--output");
         if (options.Positionals.Count == 0)
         {
             diagnostics.WriteLine("Usage : boutap-gen generate <audio> -o <pack.btp> [options]");

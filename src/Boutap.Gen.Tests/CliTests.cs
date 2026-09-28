@@ -249,6 +249,90 @@ public sealed class CliTests : IDisposable
         Says(run.Error, "absent.wav", "Le fichier manquant doit etre nomme.");
     }
 
+    // ------------------------------------------------------- options inconnues
+
+    [Fact]
+    public void Une_option_inconnue_est_refusee_et_non_ignoree()
+    {
+        var run = Invoke("generate", DemoWav(), "-o", Path_("p.btp"), "--tempo", "100");
+
+        Code(run.Code, GenProgram.UsageError, "« --tempo » n'existe pas, et une faute de frappe doit se voir.");
+        Says(run.Error, "--tempo", "L'option fautive doit etre nommee, sinon on ne la corrigerait pas.");
+        Says(run.Error, "--help", "Le message doit dire ou chercher la liste.");
+        Assert.Empty(Directory.GetFiles(directory, "*.btp"));
+    }
+
+    [Fact]
+    public void Une_option_inconnue_est_refusee_meme_si_el_tient_pour_une_option_existante()
+    {
+        // « --levl » n'est pas « --level ». La faute la plus courante est la
+        // transposition, pas l'invention : il faut la rattraper aussi.
+        var run = Invoke("analyse", DemoWav(), "--levl", "ronde");
+
+        Code(run.Code, GenProgram.UsageError, "« --levl » n'est pas « --level ».");
+        Says(run.Error, "--levl", "L'option fautive doit etre nommee telle qu'elle a ete ecrite.");
+    }
+
+    [Fact]
+    public void Une_option_inconnue_est_refusee_sur_chaque_commande()
+    {
+        string[] commands = ["analyse", "generate", "levels"];
+
+        foreach (string command in commands)
+        {
+            var run = Invoke(command, DemoWav(), "--color", "always");
+
+            Code(run.Code, GenProgram.UsageError, command + " doit refuser une option qu'elle ne connait pas.");
+            Says(run.Error, "--color", command + " doit nommer l'option refusee.");
+        }
+    }
+
+    [Fact]
+    public void La_cible_de_generate_ne_trompart_pas_la_lecture_des_options()
+    {
+        // -o et --output appartiennent a generate et a lui seul. Les tolérer
+        // ici, sans les manger, est ce qui permet a generate de les relire.
+        string target = Path_("cible.btp");
+        var run = Invoke("generate", DemoWav(), "--output", target);
+
+        Code(run.Code, GenProgram.Success, "--output est une vraie option de generate.");
+        Assert.True(File.Exists(target), "Le pack n'a pas ete ecrit a l'adresse demandee.");
+    }
+
+    [Fact]
+    public void La_cible_de_generate_ne_vaut_pas_pour_les_autres_commandes()
+    {
+        var run = Invoke("analyse", DemoWav(), "--output", Path_("cible.btp"));
+
+        Code(run.Code, GenProgram.UsageError, "analyse n'ecrit rien : lui proposer une cible n'a pas de sens.");
+        Says(run.Error, "--output", "L'option refusee doit etre nommee.");
+    }
+
+    [Fact]
+    public void L_option_de_niveau_tient_toujours_et_prend_encore_une_seule_valeur()
+    {
+        var run = Invoke("analyse", DemoWav(), "--level", "ronde", "--level", "cascade", "--json");
+
+        // Deux --level : la derniere gagne. C'est le comportement de la version
+        // precedente, on ne le change pas au passage d'un correctif d'options.
+        Code(run.Code, GenProgram.Success, "Deux niveaux demandes doivent rester acceptables.");
+        JsonNode report = Report(run);
+        JsonNode[] levels = Items(report, "levels");
+        Assert.Single(levels);
+        Says(levels[0]!.ToJsonString(), "cascade", "C'est le dernier niveau demande qui compte.");
+    }
+
+    [Fact]
+    public void Un_tiret_seul_reste_un_positionnel_et_non_une_option()
+    {
+        // Aucun des trois chemins n'a de nom de fichier « - », mais « - »
+        // n'est pas non plus une option : le refuser serait une faute de trop.
+        var run = Invoke("analyse", Path_("absent.wav"), "-");
+
+        Code(run.Code, GenProgram.Failure, "Le fichier manquant reste l'erreur la plus parlante.");
+        Says(run.Error, "absent.wav", "Le premier positionnel reste le fichier a analyser.");
+    }
+
     // ----------------------------------------------------------------- levels
 
     [Fact]

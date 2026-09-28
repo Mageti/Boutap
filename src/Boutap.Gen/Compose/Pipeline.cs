@@ -278,11 +278,14 @@ public static class Pipeline
         }
 
         double averageNps = draft.Notes.Count / Math.Max(0.001, LastTime(draft.Notes));
-        double peakLoad = Math.Min(1.0, Pipeline.PeakLoad(draft.Notes) / 2.5);
         double peakNps = Math.Min(1.0, PeakNotesPerSecond(draft.Notes) / 20.0);
         double burst = Math.Min(1.0, LongestBurst(draft.Notes) / 32.0);
         double strain = Math.Min(1.0, draft.Strain.Peak / 12.0);
 
+        // Les quatre termes pèsent 0,35 + 0,20 + 0,25 + 0,20, soit 1 : la
+        // formule est complète et il n'y a pas de cinquième terme oublié. La
+        // charge (PeakLoad) n'y figure pas : elle est déjà publiée telle quelle
+        // dans le champ « peak_load » du manifeste, où on peut la lire.
         double score = (0.35 * Math.Min(1.0, averageNps / 10.0))
             + (0.20 * peakNps)
             + (0.25 * burst)

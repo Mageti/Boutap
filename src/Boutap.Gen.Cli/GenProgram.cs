@@ -109,7 +109,15 @@ public static class GenProgram
     }
 
     /// <summary>Lit les options communes a toutes les commandes.</summary>
-    internal static CommonOptions ReadCommon(IReadOnlyList<string> args, int start)
+    /// <param name="args">Les arguments de la ligne de commande.</param>
+    /// <param name="start">Premier argument a lire.</param>
+    /// <param name="commandOptions">
+    /// Options que possede la commande sans qu'elles soient communes. Elles ne
+    /// sont pas consommees ici : elles finissent parmi les positionnels, et la
+    /// commande les relit avec sa propre lecture. « generate » y declare ainsi
+    /// « -o » et « --output », qui neInterested que lui.
+    /// </param>
+    internal static CommonOptions ReadCommon(IReadOnlyList<string> args, int start, params string[] commandOptions)
     {
         var options = new CommonOptions();
         for (int i = start; i < args.Count; i++)
@@ -131,7 +139,18 @@ public static class GenProgram
             {
                 options.SeedHex = TakeValue(args, ref i, "--seed");
             }
-            else if (!argument.StartsWith("--", StringComparison.Ordinal))
+            else if (IsOption(argument) && !commandOptions.Contains(argument, StringComparer.Ordinal))
+            {
+                // Une option qu'on ne connait pas est presque toujours une faute
+                // de frappe. L'ignorer en silence faisait qu'un « --tempo 100 »
+                // ou un « --levl ronde » passaient pour un succes complet, et
+                // que rien dans la sortie ne pouvait permettre de le remarquer.
+                // Le message ne commence pas par « Option inconnue » : Run le
+                // préfixe déjà par « Option invalide : ».
+                throw new ArgumentException(
+                    $"{argument} n'est pas une option de boutap-gen. « boutap-gen --help » donne la liste.");
+            }
+            else
             {
                 options.Positionals.Add(argument);
             }
@@ -144,6 +163,9 @@ public static class GenProgram
 
         return options;
     }
+
+    /// <summary>Un argument qui porte un tiret est une option, pas un nom de fichier.</summary>
+    private static bool IsOption(string argument) => argument.Length > 1 && argument[0] == '-';
 
     /// <summary>Prend la valeur d'une option, et avance sur elle.</summary>
     /// <param name="args">Les arguments de la ligne de commande.</param>
