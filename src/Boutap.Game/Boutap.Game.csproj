@@ -9,4 +9,16 @@
     <RootNamespace>Boutap.Game</RootNamespace>
     <AssemblyName>Boutap.Game</AssemblyName>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Core : le modele de chart et les outils de version. Audio et Input :
+         l'horloge et la conversion des horodatages, sans lesquelles il n'y a
+         aucun temps de jeu a juger.
+         Regle 5 de wiki: spec.md 7.3 : aucune reference a Boutap.Gen, ni ici
+         ni dans la coque Godot. Un test le verifie sur les assemblies
+         compilees, pas sur les fichiers de projet. -->
+    <ProjectReference Include="../Boutap.Core/Boutap.Core.csproj" />
+    <ProjectReference Include="../Boutap.Audio/Boutap.Audio.csproj" />
+    <ProjectReference Include="../Boutap.Input/Boutap.Input.csproj" />
+  </ItemGroup>
 </Project>

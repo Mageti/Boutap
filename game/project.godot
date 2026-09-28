@@ -1,0 +1,33 @@
+; Boutap 	le projet Godot.
+;
+; Ce fichier est la SEULE entree de Godot dans le depot. Il ne contient aucune
+; logique : tout le comportement est dans src/*.cs, assemble par
+; Boutap.Shell.csproj. Godot 4.3 ecrit ce fichier avec des tabulations, et
+; `.editorconfig` l'exige aussi : c'est la seule exception a la regle
+; « pas de tabulation en debut de ligne » (voir scripts/check-format.sh).
+;
+; R1 : ce fichier ne lit aucune horloge.
+
+config_version=5
+
+[application]
+
+config/name="Boutap"
+config/description="Jouer du rythme aux pieds et aux mains."
+run/main_scene="res://scenes/Main.tscn"
+config/features=PackedStringArray("4.3", "C#", "Forward Plus")
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+
+[dotnet]
+
+project/assembly_name="Boutap.Shell"
+
+[rendering]
+
+renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="mobile"

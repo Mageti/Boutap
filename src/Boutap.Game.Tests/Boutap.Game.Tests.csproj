@@ -26,4 +26,11 @@
     <ProjectReference Include="..\Boutap.Core\Boutap.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Reglage des chemins de test partage : remonte jusqu'a Boutap.sln.
+         Compile plutot que reference pour ne pas imposer a Boutap.Core.Tests
+         d'etre une bibliotheque. -->
+    <Compile Include="..\Boutap.Core.Tests\TestPaths.cs" Link="TestPaths.cs" />
+  </ItemGroup>
+
 </Project>

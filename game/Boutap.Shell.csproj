@@ -1,0 +1,35 @@
+<!--
+  SPDX-FileCopyrightText: Boutap contributors
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Boutap.Shell - la coque Godot.
+
+  Ce projet ne contient que de l'interface et du orchestration : toute la
+  logique de jeu vit dans Boutap.Game, tout ce qui doit etre deterministe
+  dans Boutap.Core. Il ne reference volontairement pas Boutap.Gen : la regle 5
+  de wiki: spec.md 7.3 dit que le jeu n'importe rien de la generation, et cette
+  reference serait la seule maniere de la trahir.
+
+  Le projet est hors de Boutap.sln et hors de src/Directory.Build.props : Godot
+  impose son propre SDK, et la racine du depot ne doit contenir qu'un seul
+  couple .sln/.csproj pour que `dotnet build` sans argument fonctionne.
+-->
+<Project Sdk="Godot.NET.Sdk/4.3.0">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Boutap.Shell</RootNamespace>
+    <AssemblyName>Boutap.Shell</AssemblyName>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\src\Boutap.Game\Boutap.Game.csproj" />
+  </ItemGroup>
+</Project>
