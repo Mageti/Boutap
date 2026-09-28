@@ -103,10 +103,10 @@ Un clone de manette, un clavier, une manette de jeu — trois fichiers dans `pro
 
 ## Compiler Boutap
 
-### Le chemin court : Docker, et rien d'autre
+### Le chemin court : un moteur de conteneurs, et rien d'autre
 
-**Le seul prérequis est Docker.** Ni .NET, ni Godot, ni Python à installer. Tout
-le reste est dans les images du dépôt.
+**Le seul prérequis est Docker, ou Podman.** Ni .NET, ni Godot, ni Python à
+installer. Tout le reste est dans les images du dépôt.
 
 ```bash
 git clone https://github.com/<votre-org>/boutap.git
@@ -139,7 +139,15 @@ Les images ne sont construites qu'une fois. Pour forcer la reconstruction :
 BOUTAP_REBUILD=1 ./scripts/ci.sh
 ```
 
-### Le chemin long : sans Docker
+Les scripts trouvent Docker ou Podman dans le `PATH`, Docker en premier. Quand
+les deux sont installés, ou pour un moteur compatible qu'ils ne connaissent pas,
+on nomme le moteur explicitement :
+
+```bash
+BOUTAP_CONTAINER_CLI=podman ./scripts/ci.sh
+```
+
+### Le chemin long : sans moteur de conteneurs
 
 Si vous préférez compiler sur votre propre machine, il vous faut :
 
@@ -164,7 +172,7 @@ dotnet build game/Boutap.Shell.csproj --configuration Debug
 godot --headless --path game --export-release linux-x86_64 ../build/linux-x86_64
 ```
 
-> Sous Windows, la voie la plus simple reste WSL 2 avec Docker. La compilation
+> Sous Windows, la voie la plus simple reste WSL 2 avec Docker ou Podman. La compilation
 > directe sous Windows est vérifiée par la CI, mais sans elle, un conteneur est
 > la seule garantie que « ça marche chez moi » veut dire la même chose partout.
 
@@ -179,8 +187,8 @@ seule, et aucune n'est un « au moins un test qui passe ».
 | `check-no-wallclock.sh` | Règle C4 : une décision de jeu qui lirait l'heure du système. |
 | `check-licenses.sh` | Un fichier source sans en-tête SPDX, ou sous la mauvaise licence. |
 | `check-format.sh` | CRLF, BOM, tabulations, espaces en fin de ligne, saut de ligne final manquant. |
-| `make-fixtures.py --check` | Un fichier binaire de test modifié à la main. |
-| `dotnet test` | 294 tests, dont les huit imposés par l'ADR 0005. |
+| `make-fixtures.py --check` | Un fichier binaire de test modifié à la main, ou un intrus déposé dans `tests/data`. |
+| `dotnet test` | 535 tests, dont les huit imposés par l'ADR 0005. |
 | `boutap audit` | Un pack, un profil ou un schéma non conforme. |
 
 ### Les caches

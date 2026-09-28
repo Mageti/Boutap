@@ -22,7 +22,7 @@ if [ "${1:-}" = "--fast" ]; then
   shift
 fi
 
-require_docker
+require_container_cli
 ensure_caches
 
 step() {

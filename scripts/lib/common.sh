@@ -26,19 +26,54 @@ image_for() {
   printf '%s-%s' "$BOUTAP_IMAGE_PREFIX" "$1"
 }
 
-# Verifie que Docker est disponible avant de perdre trente secondes a echouer
-# sur une commande incomprise.
-require_docker() {
-  if ! command -v docker >/dev/null 2>&1; then
-    echo "Docker est introuvable dans le PATH." >&2
+# Nom du binaire de moteur de conteneurs.
+#
+# Docker reste la reference, mais un poste qui n'a que Podman doit pouvoir
+# compiler sans installer Docker en plus. Ce n'est pas une intention : tout ce
+# dont ces scripts ont besoin existe chez les deux, avec la meme syntaxe --
+# « build --target », « image inspect », « run --user/--volume/--env ». L'ordre
+# de recherche est donc Docker d'abord, parce que c'est la voie documentee, puis
+# Podman. BOUTAP_CONTAINER_CLI prime sur les deux, pour le poste qui en a deux
+# installes et sait lequel il veut, ou pour un moteur compatible qu'on n'a pas
+# prevu.
+#
+# La resolution est refaite a chaque appel plutot que mise en cache : elle
+# tient dans un « command -v », et une variable globale modifiee dans un
+# sous-shell ne survivrait pas au premier « $(container_cli) » de toute facon.
+container_cli() {
+  if [ -n "${BOUTAP_CONTAINER_CLI:-}" ]; then
+    printf '%s' "$BOUTAP_CONTAINER_CLI"
+  elif command -v docker >/dev/null 2>&1; then
+    printf 'docker'
+  elif command -v podman >/dev/null 2>&1; then
+    printf 'podman'
+  else
+    return 1
+  fi
+}
+
+# Verifie qu'un moteur de conteneurs repond avant de perdre trente secondes a
+# echouer sur une commande incomprise.
+require_container_cli() {
+  local cli
+  if ! cli="$(container_cli)"; then
+    echo "Aucun moteur de conteneurs dans le PATH." >&2
     echo "C'est le seul prerrequis de ces scripts (wiki: README, section Compilation)." >&2
+    echo "Installez Docker, ou Podman :" >&2
+    echo "    https://docs.docker.com/get-docker/" >&2
+    echo "    https://podman.io/docs/installation" >&2
+    echo "Un autre moteur se declare par BOUTAP_CONTAINER_CLI=<nom>." >&2
     exit 1
   fi
-  if ! docker info >/dev/null 2>&1; then
-    echo "Le demon Docker ne repond pas." >&2
-    echo "Sur Linux, l'utilisateur doit pouvoir parler au demon :" >&2
-    echo "    sudo usermod -aG docker \"\$USER\"" >&2
-    echo "puis se reconnecter." >&2
+  if ! "$cli" info >/dev/null 2>&1; then
+    echo "Le moteur de conteneurs ne repond pas : $cli info echoue." >&2
+    if [ "$cli" = "docker" ]; then
+      echo "Sur Linux, l'utilisateur doit pouvoir parler au demon :" >&2
+      echo "    sudo usermod -aG docker \"\$USER\"" >&2
+      echo "puis se reconnecter." >&2
+    else
+      echo "Verifier que $cli fonctionne ici : $cli info" >&2
+    fi
     exit 1
   fi
 }
@@ -58,17 +93,19 @@ ensure_caches() {
 build_image() {
   local target="$1"
   local image
+  local cli
+  cli="$(container_cli)"
   image="$(image_for "$target")"
-  if [ "${BOUTAP_REBUILD:-0}" = "1" ] || ! docker image inspect "$image" >/dev/null 2>&1; then
+  if [ "${BOUTAP_REBUILD:-0}" = "1" ] || ! "$cli" image inspect "$image" >/dev/null 2>&1; then
     echo "==> Construction de l'image $image (cible : $target)"
-    docker build --target "$target" --tag "$image" "$BOUTAP_ROOT"
+    "$cli" build --target "$target" --tag "$image" "$BOUTAP_ROOT"
   else
     echo "==> Image $image deja presente (BOUTAP_REBUILD=1 pour reconstruire)"
   fi
   printf '%s' "$image"
 }
 
-# Arguments communs a tous les « docker run », dans un tableau global.
+# Arguments communs a tous les « <cli> run », dans un tableau global.
 #
 # Trois choix meritent d'etre explicites :
 #
@@ -111,21 +148,23 @@ boutap_run_args() {
 
 # Lance un conteneur.
 #
-#   run_in_image IMAGE [options docker additionnelles...] -- [commande...]
+#   run_in_image IMAGE [options du moteur additionnelles...] -- [commande...]
 #
-# Le separateur « -- » distingue les options de docker de la commande : sans
+# Le separateur « -- » distingue les options du moteur de la commande : sans
 # lui, un « --volume » de plus se retrouverait passe au programme execute.
 run_in_image() {
   local image="$1"
   shift
-  local docker_extra=()
+  local cli
+  local cli_extra=()
   while [ "$#" -gt 0 ] && [ "$1" != "--" ]; do
-    docker_extra+=("$1")
+    cli_extra+=("$1")
     shift
   done
   if [ "${1:-}" = "--" ]; then
     shift
   fi
+  cli="$(container_cli)"
   boutap_run_args
-  docker "${BOUTAP_RUN_ARGS[@]}" ${docker_extra[@]+"${docker_extra[@]}"} "$image" "$@"
+  "$cli" "${BOUTAP_RUN_ARGS[@]}" ${cli_extra[@]+"${cli_extra[@]}"} "$image" "$@"
 }

@@ -712,6 +712,19 @@ def generate(target: Path) -> None:
     print(f"{total} pack(s) ecrit(s) dans {target}.")
 
 
+# Sous-repertoires de tests/data qui appartiennent a un autre fabrique.
+#
+# tools/make-goldens.py ecrit tests/data/goldens/. Ce script n'est pas un script
+# de CI et ne doit pas le devenir : il exige librosa et numpy, dont le
+# comportement n'est pas reproductible d'une machine a l'autre, et le projet a
+# choisi de le mettre dans l'image "probe" plutot que dans la verification de
+# chaque commit. Ses fichiers sont versionnes comme les fixtures, mais ils ne
+# sont pas le produit de ce script : les ignorer ici est la seule maniere honnete
+# de ne pas les declarer intrus, et de ne pas les opposer a une comparaison
+# d'octets qu'ils ne peuvent pas satisfaire ici.
+FOREIGN_SUBTREES = ("goldens",)
+
+
 def check(target: Path) -> int:
     """Verifie que les fixtures commitees sont celles que ce script produit."""
     with tempfile.TemporaryDirectory() as scratch:
@@ -722,7 +735,15 @@ def check(target: Path) -> int:
         # Le chemin relatif, pas le seul nom : les fixtures vivent dans un
         # sous-repertoire, et c'est lui qu'il faut comparer au depot.
         expected_files = sorted(str(p.relative_to(regenerated)) for p in regenerated.rglob("*") if p.is_file())
-        actual_files = sorted(str(p.relative_to(target)) for p in target.rglob("*") if p.is_file())
+        # Les sous-repertoires d'un autre fabrique sont exclus de l'inventaire,
+        # et de la comparaison par consequent : ils ne sont ni produits ici, ni
+        # reproductibles ici. Les declarer "inattendus" serait faux, et les
+        # comparer octet par octet aussi.
+        actual_files = sorted(
+            str(p.relative_to(target))
+            for p in target.rglob("*")
+            if p.is_file() and p.relative_to(target).parts[0] not in FOREIGN_SUBTREES
+        )
 
         for extra in sorted(set(actual_files) - set(expected_files)):
             problems.append(f"{extra} : fichier inattendu dans tests/data.")

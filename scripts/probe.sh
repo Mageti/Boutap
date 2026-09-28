@@ -19,7 +19,7 @@ set -euo pipefail
 
 . "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
 
-require_docker
+require_container_cli
 ensure_caches
 image="$(build_image probe)"
 

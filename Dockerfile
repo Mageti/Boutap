@@ -6,7 +6,8 @@
 # Une seule image, plusieurs cibles. L'image « dev » est le poste de travail ;
 # « export » ajoute l'editeur Godot ; « probe » est la sonde audio et l'oracle
 # Python du portage C#. Aucun de ces conteneurs n'a besoin d'une installation
-# de dependances sur la machine hote : le seul prerrequis est Docker.
+# de dependances sur la machine hote : le seul prerrequis est un moteur de
+# conteneurs, Docker ou Podman.
 #
 # Les images sont lancees par scripts/*.sh, qui montent le depot sur /src et des
 # repertoires de cache hors de /src. Les repertoires de cache sont crees sur

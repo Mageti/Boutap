@@ -27,7 +27,7 @@ if [ "${1:-}" = "--rebuild" ]; then
   export BOUTAP_REBUILD=1
 fi
 
-require_docker
+require_container_cli
 ensure_caches
 image="$(build_image dev)"
 
@@ -37,7 +37,7 @@ if [ "$#" -eq 0 ]; then
   # -it pour avoir un terminal ; sans terminal, un developpeur qui lance ce
   # script depuis un script verrait le conteneur mourir immediatement.
   boutap_run_args
-  docker "${BOUTAP_RUN_ARGS[@]}" -it "$image" /bin/bash
+  "$(container_cli)" "${BOUTAP_RUN_ARGS[@]}" -it "$image" /bin/bash
 else
   run_in_image "$image" -- "$@"
 fi

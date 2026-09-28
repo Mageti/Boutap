@@ -33,7 +33,7 @@ if [ "$#" -gt 0 ]; then
   PRESETS=("$@")
 fi
 
-require_docker
+require_container_cli
 ensure_caches
 image="$(build_image export)"
 

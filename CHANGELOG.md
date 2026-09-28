@@ -18,6 +18,16 @@ le préfixe `v` n'est pas utilisé.
 
 ### Ajouté
 
+- **Podman comme moteur de conteneurs**, pour les postes qui n'ont pas Docker.
+  Les scripts de `scripts/` ne dépendent plus de `docker` en dur : ils résolvent
+  le moteur présent dans le `PATH` — Docker d'abord, parce que c'est la voie
+  documentée, puis Podman — et `BOUTAP_CONTAINER_CLI` permet de désigner
+  explicitement un moteur, y compris un moteur compatible qui n'était pas prévu.
+  Tout ce dont ces scripts ont besoin a la même syntaxe des deux côtés
+  (`build --target`, `image inspect`, `run --user/--volume/--env`), donc rien
+  d'autre ne bouge : les caches restent hors du dépôt, et le conteneur tourne
+  toujours avec l'uid de l'utilisateur, donc aucun fichier produit n'appartient
+  jamais à `root`.
 - **3 tests sur la note de difficulté**, qui vérifient que le terme de rafale
   pèse enfin un quart de la note : la même charge de seize notes notée 7 sur
   20 quand elle est en rafales et 4 sur 20 quand elle est répartie, une note
@@ -108,6 +118,18 @@ le préfixe `v` n'est pas utilisé.
 
 ### Corrigé
 
+- **`make-fixtures.py --check` échouait sur un fichier qui n'est pas le sien.**
+  `tests/data/goldens/analysis-golden.json`, produit par `tools/make-goldens.py`,
+  était signalé comme « fichier inattendu dans tests/data », et l'étape 3 de
+  `scripts/ci.sh` s'arrêtait là : la vérification était rouge avant même les
+  exports, partout, y compris en CI. Les deux outils sont volontairement
+  distincts — `make-goldens.py` exige librosa et numpy, et son propre
+  docstring refuse d'être un script de CI — mais `make-fixtures.py` ne
+  connaissait que ses propres fichiers et voyait donc un intrus dans tout ce
+  qu'un autre fabrique écrit sous `tests/data`. Il ignore désormais le
+  sous-répertoire d'un autre fabrique. La garde reste entière sur son
+  domaine : un fichier parasite dans `tests/data` échoue toujours, et une
+  fixture modifiée à la main aussi.
 - **La note de difficulté ignorait presque ses rafales.** Le terme pèse 25 %
   du score, mais il comptait les notes dans une fenêtre de 100 ms, que la règle
   de lisibilité L5 borne à quatre notes, et il divisait par 32 : il plafonnait
