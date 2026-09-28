@@ -13,13 +13,19 @@ namespace Boutap.Tools.Commands;
 /// <para>
 /// C'est la commande qui fixe les deux seuils de S1 : latence de bout en bout
 /// sous 25 ms, derive sous 5 ms par cinq minutes (wiki: spec.md §9). Elle a
-/// donc besoin du lecteur audio reel, donc de miniaudio, qui n'arrive qu'en
-/// S3.1.
+/// donc besoin du lecteur audio reel, donc d'un appel systeme.
 /// </para>
 /// <para>
-/// En attendant, la commande ne fabrique pas de chiffre. Elle explique ce
+/// Le C# pur n'en a aucun : <c>Boutap.Audio</c> decode un WAV et calcule une
+/// position d'echantillon, il n'ouvre aucun peripherique. La mesure appartient
+/// donc a la coque Godot, la ou la file d'attente audio existe — c'est ce que
+/// dit l'amendement du 2026-09-28 dans la spec (§16.2), qui reecrit le critere
+/// de fin de S1 pour lever la circularite.
+/// </para>
+/// <para>
+/// D'ici la, la commande ne fabrique pas de chiffre. Elle explique ce
 /// qu'elle mesurerait et rend <see cref="ExitCodes.Failure"/> : un rapport qui
-/// afficherait « 0 ms de latence » ferait Worse que pas de rapport du tout,
+/// afficherait « 0 ms de latence » serait pire que pas de rapport du tout,
 /// parce qu'il passerait pour une reussite.
 /// </para>
 /// </remarks>
@@ -89,9 +95,10 @@ public sealed class BenchLatencyCommand : ICommand
     /// <returns>Vrai si une mesure de latence est possible.</returns>
     private static bool ProbeAudioBackend()
     {
-        // miniaudio (S3.1) n'est pas encore embarque. Une bibliotheque de
+        // Le backend audio natif n'est pas encore embarque. Une bibliotheque de
         // decodage ne suffit pas : la latence qu'on cherche est celle de la
-        // chaine de sortie, pas celle du lecteur de fichier.
+        // chaine de sortie, pas celle du lecteur de fichier. Tant qu'il
+        // manque, la mesure appartient a la coque Godot (spec.md §16.2).
         return File.Exists(Path.Combine(AppContext.BaseDirectory, "miniaudio.dll"))
             || File.Exists(Path.Combine(AppContext.BaseDirectory, "libminiaudio.so"))
             || Directory.Exists(AppContext.BaseDirectory)
@@ -121,5 +128,7 @@ public sealed class BenchLatencyCommand : ICommand
     }
 
     private static string BackendUnavailableReason() =>
-        "le backend audio natif (miniaudio) arrive en S3.1; S1 n'est pas tranche";
+        "le backend audio natif (miniaudio, ADR 0002) n'est pas encore embarque, et le C# "
+        + "pur n'ouvre aucun peripherique : la mesure de latence se fera dans la coque, "
+        + "la ou la file d'attente audio existe (spec.md §16.2)";
 }
