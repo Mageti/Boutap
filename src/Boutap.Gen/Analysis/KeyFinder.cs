@@ -7,10 +7,13 @@
 // "A Generative Theory of Tonal Music", Journal of the American Statistical
 // Association 77(358):45-50.
 //
-// Sur les six valeurs que la specification en recopie, cinq sont exactes ; la
-// sixieme, « sixte 3.48 », ne figure dans aucun des deux gabarits de 1982. On
-// utilise donc le gabarit complet, cite, plutot que de completer le gabarit
-// par une valeur inventee. La divergence est consignee dans le wiki.
+// Les deux gabarits sont ceux de 1982, complets et sans retouche. La
+// specification en recopie six valeurs, mais ses etiquettes sont decalees :
+// elle place 4.38 sur la mediance et 5.38 sur la dominante, alors que 4.38 est
+// la dominante de 1982, que 5.38 est la sous-dominante du gabarit mineur, et
+// que le 3.48 qu'elle nomme « sixte » est bien la mediante de 1982. Suivre la
+// specification menait donc a une tonalite fausse, La majeur etant attribuee a
+// Re bemol. La divergence est consignee dans le wiki.
 
 using System.Collections.ObjectModel;
 
@@ -43,7 +46,7 @@ public static class KeyFinder
     /// </remarks>
     private static readonly double[] MajorProfile =
     [
-        6.35, 2.23, 4.38, 5.38, 2.33, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88,
+        6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88,
     ];
 
     /// <summary>Gabarit mineur de 1982, en demi-tons depuis la tonique.</summary>

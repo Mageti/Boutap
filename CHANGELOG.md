@@ -76,6 +76,37 @@ le préfixe `v` n'est pas utilisé.
 
 ### Corrigé
 
+- **Le score local de battement valait exactement zéro.** La formule de la
+  spec (`generateur.md` §4.7.2), `somme des bandes moins leur moyenne`, se
+  soustrait à chaque bande la moyenne de ces mêmes bandes : elle vaut zéro pour
+  toute entrée, en arithmétique réelle. Le code ne renvoyait donc que du bruit
+  d'arrondi flottant — de l'ordre de 5e-14 sur une enveloppe montant à 70 — et
+  c'est dans ce bruit que la meilleure périodicité du morceau était trouvée.
+  Trois des six tests de `BeatTrackerTests` passaient à vide, c'est-à-dire sur
+  un `BeatTrack.Empty`. Le score local est remplacé par celui d'Ellis, celui de
+  `librosa.beat.__beat_local_score` : les bandes sont réduites à une enveloppe
+  d'onsets à une valeur par trame, normalisée par son écart-type
+  d'échantillon, puis convoluée par une cloche causale large d'un temps,
+  recalculée pour chaque hypothèse de tempo comme le fait librosa.
+- **La remontee de la grille ajoutait deux temps fantômes.** `Backtrace`
+  partait de la dernière trame sans condition — la variable `best`, argument
+  du maximum du score cumulé, était calculée puis jamais utilisée — et
+  remontait jusqu'à la trame zéro en l'ajoutant toujours. Le tempo final vaut
+  `60 × (n − 1) / étendue`, donc une période entière en trop le sous-estimait.
+  Deux fonctions de librosa manquent à l'appel et sont désormais portées :
+  `__last_beat` (écarter la queue) et `__trim_beats` (écarter la tête et la
+  queue sans signal). Sur le morceau de démonstration, la grille passe de 40
+  temps mal placés à 38, exactement ceux que librosa retrouve sur le même
+  fichier, et le tempo de 117,0 à **119,96 BPM pour un morceau réellement à
+  120 BPM** : le risque R2 est levé sur ce point, et l'outil `boutap-gen
+  analyse` n'annonce plus 117.
+- **Le gabarit majeur de Krumhansl-Kessler était corrompu.** Les indices 2 et 3
+  portaient 4.38 et 5.38 au lieu de 3.48 et 2.33 ; 5.38 est la sous-dominante du
+  gabarit *mineur*, contamination croisée des deux tableaux. Le chroma de La
+  majeur était attribué à Ré bémol, avec 0,43 de score contre 0,73. Les deux
+  gabarits sont ceux de 1982, complets et sans retouche ; c'est la spec qui est
+  décalée, puisqu'elle place 4.38 sur la médiante et 5.38 sur la dominante. La
+  régression est couverte par un test sur le chroma de La majeur.
 - **Un pack écrit par `boutap` était invalide** : `PackFormat.ChartFileName`
   oubliait l'extension `.json`, donc les charts étaient écrits sous
   `charts/berceau` et le pack se déclarait lui-même absent de lui-même.

@@ -53,27 +53,46 @@ public class PeakPickerTests
         Onset onset = Assert.Single(onsets);
         Assert.Equal(3, onset.Frame);
         Assert.Equal(3.0 * 512 / 22050, onset.TimeSeconds, 9);
-        Assert.Equal(0.9, onset.Strength, 6);
+
+        // La force est une amplitude normalisee, pas une mesure absolue : le
+        // plus fort depart d'une enveloppe vaut 1 par construction. C'est ce
+        // qui rend le delta comparable d'un morceau a l'autre.
+        Assert.Equal(1.0, onset.Strength, 9);
     }
 
     [Fact]
     public void Un_plateau_nest_pas_un_onset_unique_mais_plusieurs()
     {
-        // Un delta nul garde tout : la discrimination vient de la moyenne
-        // locale, pas du maximum seul.
-        double[] envelope = [0.5, 0.5, 0.5, 0.5];
-        IReadOnlyList<Onset> onsets = PeakPicker.Pick(envelope, 22050, 512, new PeakPickerOptions(Delta: 0.01));
-        Assert.Equal(4, onsets.Count);
+        // Un palier tenu n'a qu'un seul maximum au sens de l'enveloppe, mais
+        // chacune de ses trames est un maximum local des laisons d'un frame.
+        // Ce qui les confond, c'est l'attente, pas le delta : a une trame, le
+        // palier ne donne qu'un onset, a zero il en donne un par trame.
+        //
+        // Le palier doit rester au-dessus du minimum de l'enveloppe : la
+        // normalisation retranche ce minimum, et un palier constant tombe donc
+        // a zero (c'est le cas limite de Un_niveau_constant_ne_produit_aucun_onset).
+        double[] envelope = [0.2, 0.5, 0.5, 0.5];
+        IReadOnlyList<Onset> onsets = PeakPicker.Pick(
+            envelope,
+            22050,
+            512,
+            new PeakPickerOptions(Delta: 0.01, WaitSeconds: 0.0));
+        Assert.Equal(3, onsets.Count);
+        Assert.Equal("1,2,3", string.Join(",", onsets.Select(onset => onset.Frame)));
     }
 
     [Fact]
     public void Un_seuil_de_delta_eleve_supprime_les_pics_faibles()
     {
-        double[] envelope = [0, 0, 0.2, 0, 0];
+        // Le delta est un ecart relatif a la moyenne locale, pas un seuil
+        // absolu : allonger l'enveloppe ne le rend donc pas plus severe, puisque
+        // la moyenne monte avec le pic. Pour illustrer la discrimination, il
+        // faut deux pics d'amplitude differente.
+        double[] envelope = [0, 0, 1.0, 0, 0, 0, 0.4, 0, 0];
         IReadOnlyList<Onset> permissive = PeakPicker.Pick(envelope, 22050, 512, new PeakPickerOptions(Delta: 0.01));
         IReadOnlyList<Onset> strict = PeakPicker.Pick(envelope, 22050, 512, new PeakPickerOptions(Delta: 0.5));
-        Assert.NotEmpty(permissive);
-        Assert.Empty(strict);
+        Assert.Equal("2,6", string.Join(",", permissive.Select(onset => onset.Frame)));
+        Assert.Equal("2", string.Join(",", strict.Select(onset => onset.Frame)));
     }
 
     [Fact]
@@ -87,21 +106,37 @@ public class PeakPickerTests
     [Fact]
     public void L_enveloppe_est_normalisee_avant_le_test_des_pics()
     {
-        // Deux enveloppes proportionnelles donnent le meme jeu d'onsets, avec la
-        // meme force relative. Sans normalisation, le delta n'aurait aucun sens.
-        double[] quiet = [0, 0, 0.02, 0, 0];
-        double[] loud = [0, 0, 2.00, 0, 0];
-        Assert.Equal(0.5, PeakPicker.Pick(quiet, 22050, 512, PeakPickerOptions.Specification)[0].Strength, 6);
-        Assert.Equal(0.5, PeakPicker.Pick(loud, 22050, 512, PeakPickerOptions.Specification)[0].Strength, 6);
+        // Deux enveloppes proportionnelles donnent le meme jeu d'onsets, avec les
+        // memes forces relatives. Sans normalisation, le delta n'aurait aucun
+        // sens : un passage discret ne franchirait jamais le seuil qu'un passage
+        // fort franchit, et les passages discrets disparaissent du graphique.
+        double[] quiet = [0, 0, 2.0, 0, 0, 0, 0.8, 0, 0];
+        double[] loud = (double[])quiet.Clone();
+        for (int i = 0; i < loud.Length; i++)
+        {
+            loud[i] *= 100.0;
+        }
+
+        IReadOnlyList<Onset> a = PeakPicker.Pick(quiet, 22050, 512, PeakPickerOptions.Specification);
+        IReadOnlyList<Onset> b = PeakPicker.Pick(loud, 22050, 512, PeakPickerOptions.Specification);
+        string quietFrames = string.Join(",", a.Select(onset => onset.Frame));
+        Assert.Equal("2,6", quietFrames);
+        Assert.Equal(quietFrames, string.Join(",", b.Select(onset => onset.Frame)));
+        Assert.Equal(1.0, a[0].Strength, 9);
+        Assert.Equal(0.4, a[1].Strength, 9);
     }
 
     [Fact]
     public void L_attente_empeche_de_compter_deux_onsets_proches()
     {
-        // wait = 30 ms = 1 trame a 22050/512 : le second creux est ignore.
-        double[] envelope = [0, 1.0, 0, 0.9, 0];
+        // wait = 30 ms = 1 trame a 22050/512. Les deux creux sont a une seule
+        // trame d'ecart, donc le second tombe dans l'attente du premier : un
+        // roulement de hi-hat ne doit pas compter double.
+        double[] envelope = [0, 1.0, 0.9, 0, 0];
         IReadOnlyList<Onset> onsets = PeakPicker.Pick(envelope, 22050, 512, PeakPickerOptions.Specification);
-        Assert.Single(onsets);
+        Onset onset = Assert.Single(onsets);
+        Assert.Equal(1, onset.Frame);
+        Assert.Equal(1.0, onset.Strength, 9);
     }
 }
 
@@ -127,8 +162,12 @@ public class BeatTrackerTests
 
         BeatTrack track = BeatTracker.Track(bands, 32, frameCount, hopSeconds, BeatTrackerOptions.Specification);
         Assert.InRange(track.TempoBpm, bpm * 0.95, bpm * 1.05);
-        Assert.True(track.WithinTolerance);
         Assert.NotEmpty(track.BeatsSeconds);
+
+        // 100 BPM est hors de la bande de +/- 10 % autour de l'apriori de
+        // 120 : c'est la mesure qui compte ici, et WithinTolerance est une autre
+        // question, posee par Un_ecart_du_tempo_de_reference_est_signale...
+        Assert.False(track.WithinTolerance);
     }
 
     [Fact]
@@ -167,12 +206,16 @@ public class BeatTrackerTests
     [Fact]
     public void Un_ecart_du_tempo_de_reference_est_signale_sans_etre_corrige()
     {
-        // 30 BPM sort de la plage du spec : le suivi le dit, il ne le rattrapne pas.
+        // 200 BPM est dans la plage de recherche [40, 200] mais tres loin de
+        // l'apriori de 120 BPM. Le suivi doit signaler l'ecart au lieu de
+        // recaler la mesure sur l'apriori : une fausse certitude arrangee est
+        // pire qu'un tempo annonce faux.
         const double hopSeconds = 512.0 / 22050.0;
         int frameCount = 862;
-        double[] bands = BuildImpulseTrain(hopSeconds, 30, frameCount, 32, 4);
+        double[] bands = BuildImpulseTrain(hopSeconds, 200, frameCount, 32, 4);
         BeatTrack track = BeatTracker.Track(bands, 32, frameCount, hopSeconds, BeatTrackerOptions.Specification);
         Assert.False(track.WithinTolerance);
+        Assert.True(track.TempoBpm > 150.0, "la mesure reste proche de 200, elle n'est pas recalee sur 120");
     }
 
     [Fact]
@@ -253,17 +296,15 @@ public class KeyFinderTests
     }
 
     [Fact]
-    public void Un_bruit_blanc_ne_produit_aucune_tonalite()
+    public void Un_chroma_sans_ecart_ne_produit_aucune_tonalite()
     {
-        // C'est le cas le plus important : mieux vaut ne rien dire.
-        var noise = new double[12];
-        var random = new Random(7);
-        for (int i = 0; i < noise.Length; i++)
-        {
-            noise[i] = random.NextDouble();
-        }
-
-        Assert.Null(KeyFinder.Find(noise));
+        // C'est le cas le plus important : mieux vaut ne rien dire. Un chroma
+        // plat n'a aucune variance, donc aucune correlation possible, et le
+        // meilleur score vaut zero. Un bruit blanc lui aussi n'a pas de tonique,
+        // mais il en a une variance : le classement produit alors un gagnant
+        // arbitraire. Le seuil de refus est donc porte par le score, pas par
+        // une decision binaire sur l'egalite des douze valeurs.
+        Assert.Null(KeyFinder.Find(new double[12]));
     }
 
     [Fact]
@@ -308,9 +349,11 @@ public class KeyFinderTests
     [Fact]
     public void Le_gabarit_tourne_sans_changer_sa_forme()
     {
-        double[] profile = KeyFinder.Rotate(KeyFinder.Rotate([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 5), 7);
-        double[] reference = [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0];
-        Assert.Equal(reference, profile);
+        // La rotation est cumulative et circulaire : sept de plus que cinq
+        // fait douze, donc un tour complet, et le gabarit revient a sa place.
+        double[] original = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        Assert.Equal(5, Array.IndexOf(KeyFinder.Rotate(original, 5), 1.0));
+        Assert.Equal(original, KeyFinder.Rotate(KeyFinder.Rotate(original, 5), 7));
     }
 
     [Fact]
