@@ -47,20 +47,30 @@ public static class Pipeline
     /// <param name="audioSha256Hex">Empreinte de l'audio decode.</param>
     /// <param name="version">Version du generateur.</param>
     /// <param name="profiles">Niveaux a generer, ou <see langword="null"/> pour les trois.</param>
+    /// <param name="seedHex">
+    /// Materiau de graine impose, ou <see langword="null"/> pour deriver les
+    /// graines de l'empreinte de l'audio. Il ne remplace pas l'empreinte :
+    /// <c>audio.sha256</c> et <c>chart.audio_sha256</c> restent l'empreinte du
+    /// contenu decode, quelle que soit cette valeur.
+    /// </param>
     public static GenerationResult Run(
         double[] samples,
         int sampleRate,
         double durationSeconds,
         string audioSha256Hex,
         string version,
-        IReadOnlyList<LevelProfile>? profiles = null)
+        IReadOnlyList<LevelProfile>? profiles = null,
+        string? seedHex = null)
     {
         ArgumentNullException.ThrowIfNull(samples);
         ArgumentNullException.ThrowIfNull(audioSha256Hex);
         ArgumentNullException.ThrowIfNull(version);
 
         IReadOnlyList<LevelProfile> levels = profiles ?? ChartGeneratorOptions.DefaultProfiles;
-        ChartGeneratorOptions options = new(version, audioSha256Hex, levels);
+        ChartGeneratorOptions options = new(version, audioSha256Hex, levels)
+        {
+            SeedMaterialOverrideHex = seedHex,
+        };
 
         // La garde vient avant l'analyse : analyser d'abord pour echouer ensuite
         // rapporterait une erreur de fenetre, alors que la cause est la frequence.
@@ -127,7 +137,8 @@ public static class Pipeline
 
         foreach (ChartDraft draft in result.Drafts)
         {
-            Chart chart = ChartGenerator.ToChart(draft, audioSha256, result.Options.Version);
+            Chart chart = ChartGenerator.ToChart(
+                draft, audioSha256, result.Options.Version, 0, result.Options.SeedMaterialHex);
             charts.Add(chart);
             entries.Add(new ChartEntry
             {
@@ -168,7 +179,8 @@ public static class Pipeline
                 Name = ChartGenerator.Name,
                 Version = result.Options.Version,
                 Params = DescribeParameters(result),
-                Seed = SeedDerivation.PackSeedValue(audioSha256, result.Options.Version),
+                Seed = SeedDerivation.PackSeedValue(
+                    result.Options.SeedMaterialHex, result.Options.Version),
             },
             Charts = entries,
             ContentLicense = identity.ContentLicense,
@@ -310,7 +322,7 @@ public static class Pipeline
     private static JsonObject DescribeParameters(GenerationResult result)
     {
         TrackProfile track = result.Track;
-        return new JsonObject
+        var parameters = new JsonObject
         {
             ["n_fft"] = AnalysisSettings.Nfft,
             ["hop_length"] = AnalysisSettings.HopLength,
@@ -325,6 +337,16 @@ public static class Pipeline
             ["syncope_probability"] = result.Options.Humanizer.SyncopeProbability,
             ["tempo_within_tolerance"] = track.Beats.WithinTolerance,
         };
+
+        // Le materiau n'est note que lorsqu'il a ete impose. Par defaut il
+        // vaut l'empreinte de l'audio, deja ecrite ailleurs dans le manifeste :
+        // le redire n'ajouterait rien au format.
+        if (result.Options.SeedMaterialOverrideHex is string material)
+        {
+            parameters["seed_material"] = material;
+        }
+
+        return parameters;
     }
 
     private static string ReportText(GenerationResult result)
@@ -334,7 +356,7 @@ public static class Pipeline
             "Boutap — rapport de generation",
             string.Empty,
             $"Generateur : {ChartGenerator.Name} {result.Options.Version}",
-            $"Graine du pack : {result.Options.AudioSha256Hex}",
+            $"Graine du pack : {result.Options.SeedMaterialHex}",
             string.Empty,
         };
 

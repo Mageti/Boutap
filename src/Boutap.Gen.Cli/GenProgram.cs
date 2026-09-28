@@ -36,7 +36,11 @@ public static class GenProgram
         Options communes :
           --level <niveau>   Ne generer qu'un niveau (berceau, ronde, cascade).
           --json             Sortie machine, une seule ligne.
-          --seed <hex>       Force la graine du pack (64 chiffres hexadecimaux).
+          --seed <hex>       Impose le materiau de graine (64 chiffres
+                            hexadecimaux) : donne une variante du meme
+                            morceau, toujours reproductible. L'empreinte de
+                            l'audio, elle, ne change pas — elle dit quel
+                            audio a ete analyse.
           --dry-run          N'ecrit rien : la generation reste complete.
 
         L'audio doit etre un WAV lisible par Boutap. Le pack produit est

@@ -54,6 +54,29 @@ public sealed record ChartGeneratorOptions(
     string AudioSha256Hex,
     IReadOnlyList<LevelProfile> Profiles)
 {
+    /// <summary>
+    /// Materiau de graine impose, ou <see langword="null"/> pour le derivar de
+    /// l'empreinte de l'audio.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// L'empreinte et la graine ne sont pas la meme chose. L'empreinte est un
+    /// fait : elle dit quel audio a ete analyse. La graine est un choix : elle
+    /// dit d'où part le compteur pseudo-aleatoire qui humanise les notes.
+    /// </para>
+    /// <para>
+    /// Imposer un materiau donne une variante differente du meme morceau, et
+    /// surtout reproductible : rejouer la meme commande redonne les memes
+    /// octets. Cela ne doit toucher ni <c>audio.sha256</c> ni
+    /// <c>chart.audio_sha256</c>, qui resteraient alors des declarations
+    /// fausses sur l'audio lui-meme.
+    /// </para>
+    /// </remarks>
+    public string? SeedMaterialOverrideHex { get; init; }
+
+    /// <summary>Le materiau reellement utilise pour deriver les graines.</summary>
+    public string SeedMaterialHex => SeedMaterialOverrideHex ?? AudioSha256Hex;
+
     /// <summary>Seuils de detection des pics.</summary>
     public PeakPickerOptions PeakPicker { get; init; } = PeakPickerOptions.Specification;
 
@@ -150,7 +173,7 @@ public static class ChartGenerator
         ReadabilityReport smoothed = ReadabilityFilter.Smooth(drafted);
         SimulationReport played = PlayerSimulator.Simulate(smoothed.Notes, profile.Level, options.Player);
         IReadOnlyList<Note> humanized = Humanizer.Humanize(
-            played.Reachable, options.AudioSha256Hex, options.Version, profile.Level, track.Beats.TempoBpm, options.Humanizer);
+            played.Reachable, options.SeedMaterialHex, options.Version, profile.Level, track.Beats.TempoBpm, options.Humanizer);
         IReadOnlyList<Note> cleaned = NoteCleaner.Clean(
             humanized, track.DurationSeconds, onsets.Count == 0 ? 0 : onsets[0].TimeSeconds);
 
@@ -163,7 +186,16 @@ public static class ChartGenerator
     /// <param name="audioSha256Hex">Empreinte de l'audio decode.</param>
     /// <param name="version">Version du generateur.</param>
     /// <param name="offsetSeconds">Decalage entre l'audio et la premiere note.</param>
-    public static Chart ToChart(ChartDraft draft, string audioSha256Hex, string version, double offsetSeconds = 0)
+    /// <param name="seedMaterialHex">
+    /// Materiau dont derives la graine, ou <see langword="null"/> pour l'empreinte
+    /// de l'audio.
+    /// </param>
+    public static Chart ToChart(
+        ChartDraft draft,
+        string audioSha256Hex,
+        string version,
+        double offsetSeconds = 0,
+        string? seedMaterialHex = null)
     {
         ArgumentNullException.ThrowIfNull(draft);
         ArgumentNullException.ThrowIfNull(audioSha256Hex);
@@ -179,7 +211,8 @@ public static class ChartGenerator
             {
                 Name = Name,
                 Version = version,
-                Seed = SeedDerivation.ChartSeedValue(audioSha256Hex, version, draft.Level.FileNameOf()),
+                Seed = SeedDerivation.ChartSeedValue(
+                    seedMaterialHex ?? audioSha256Hex, version, draft.Level.FileNameOf()),
             },
             Notes = draft.Notes,
         };

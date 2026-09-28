@@ -81,7 +81,13 @@ le préfixe `v` n'est pas utilisé.
   horodatages d'archive ZIP compris, et le contre-test qui prouve que le
   test précédent ne prouve rien tant qu'un changement d'empreinte ne change
   pas le résultat.
-- **477 tests** d'unite au vert.
+- **10 tests** sur la graine imposée par `--seed` : la graine du pack et des
+  trois niveaux vient du matériau et non de l'empreinte, le matériau inscrit
+  est relu par le validateur, deux matériaux identiques donnent le même pack
+  octet pour octet, l'empreinte de l'audio ne bouge pas, un pack à graine
+  imposée passe la validation de bout en bout, et un matériau forgé ou invalide
+  est refusé puis retombe sur l'empreinte.
+- **487 tests** d'unité au vert.
 
 ### Corrigé
 
@@ -156,6 +162,22 @@ le préfixe `v` n'est pas utilisé.
   scripts shell n'élaguaient que le `bin/` de la racine, pas celui de chacun des
   douze projets de `src/`.
 - `.gitignore` ignorait `export_presets.cfg`, que la CI doit lire.
+- **`--seed` écrivait la graine dans le champ d'empreinte.**
+  `boutap-gen generate --seed <64 hex>` faisait passer la graine dans le
+  paramètre `audioSha256Hex` de `Pipeline.Run`, qui portait deux noms pour une
+  seule valeur : l'empreinte de provenance et le matériau de dérivation des
+  graines. Le pack produit était rejeté sur `audio.hash-mismatch` — l'empreinte
+  ne désignait plus l'audio. Corriger le seul appel n'aurait fait que déplacer
+  l'erreur, car le validateur redérive la graine depuis `audio.sha256` et aurait
+  alors refusé le pack sur `manifest.seed-not-derived`.
+  La formule de graine a deux entrées, pas une : `generator.params.seed_material`
+  les distingue. Le matériau vaut l'empreinte de l'audio décodé par défaut, et
+  `--seed` le remplace pour demander une variante du même morceau ; le champ
+  n'est écrit que lorsqu'il a été imposé. Le validateur relit le champ et
+  redérive, donc la règle de dérivation reste vivante : un `seed_material`
+  forgé est toujours refusé, sur les trois niveaux. Aucune version de schéma
+  n'a bougé, `params` étant un objet libre, et le pack produit par défaut
+  reste identique octet pour octet.
 
 ### Décidé
 

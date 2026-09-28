@@ -44,9 +44,10 @@ internal static class GenerateCommand
             audio.Samples,
             audio.SampleRate,
             audio.DurationSeconds,
-            options.SeedHex ?? audio.CanonicalSha256Hex,
+            audio.CanonicalSha256Hex,
             SemanticVersion.Current.ToString(),
-            GenProgram.ProfilesFor(options.Levels));
+            GenProgram.ProfilesFor(options.Levels),
+            options.SeedHex);
 
         var identity = new PackIdentity(
             Identifier.FromPath(options.Positionals[0]),
@@ -78,7 +79,7 @@ internal static class GenerateCommand
         output.WriteLine(dryRun
             ? "Simulation terminee, rien n'a ete ecrit."
             : $"Pack ecrit : {outputPath}");
-        output.WriteLine($"Graine du pack : {result.Options.AudioSha256Hex}");
+        output.WriteLine($"Graine du pack : {pack.Manifest.Generator?.Seed}");
         output.WriteLine(string.Empty);
         output.WriteLine($"{"Niveau",-10} {"Notes",6} {"Charge/10",10} {"Note/20",8}  Fichier");
         foreach (Chart chart in pack.Charts)
@@ -113,7 +114,8 @@ internal static class GenerateCommand
             ["schema"] = "boutap/gen-report/1",
             ["written"] = !dryRun,
             ["path"] = outputPath,
-            ["seed"] = result.Options.AudioSha256Hex,
+            ["seed"] = pack.Manifest.Generator?.Seed,
+            ["seed_material"] = result.Options.SeedMaterialHex,
             ["tempo_bpm"] = GenJson.Round(result.Track.Beats.TempoBpm),
             ["key"] = result.Track.Key is null ? null : result.Track.Key.Value.Key.ToString(),
             ["charts"] = charts,

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Boutap.Core.Common;
 using Boutap.Core.Determinism;
 
@@ -740,17 +741,40 @@ public static class PackValidator
         }
 
         string levelName = level.Value.FileNameOf();
-        ulong expected = SeedDerivation.ChartSeedValue(audio, version, levelName);
+        string? material = SeedMaterialOf(manifest, audio);
+        ulong expected = SeedDerivation.ChartSeedValue(material, version, levelName);
         if (seed != expected)
         {
             result.Error(
                 ValidationCodes.SeedNotDerived,
-                $"generator.seed vaut {Invariant(seed)}, alors que la derivee de l'empreinte de "
-                + $"l'audio, de la version « {version} » et du niveau « {levelName} » "
+                $"generator.seed vaut {Invariant(seed)}, alors que la derivee du materiau de graine "
+                + $"(« {material} »), de la version « {version} » et du niveau « {levelName} » "
                 + $"donne {Invariant(expected)}. La graine depend du contenu decode de l'audio, "
                 + "jamais d'un nom de fichier : c'est ce qui la rend reproductible.",
                 jsonPointer);
         }
+    }
+
+    /// <summary>
+    /// Le materiau dont les graines sont derivees : celui que le generateur a
+    /// note, ou l'empreinte de l'audio quand il n'en a note aucun.
+    /// </summary>
+    /// <remarks>
+    /// Par defaut le materiau est l'empreinte, et il n'est pas reecrit dans
+    /// <c>generator.params</c>. Un generateur qui impose sa propre graine doit
+    /// la noter, sinon personne ne pourrait recalculer <c>generator.seed</c> et
+    /// la regle de derivaison deviendrait unverifiable — donc inerte.
+    /// </remarks>
+    private static string SeedMaterialOf(Manifest manifest, string audioSha256)
+    {
+        if (manifest.Generator?.Params?["seed_material"] is JsonValue value
+            && value.TryGetValue<string>(out string? material)
+            && PackFieldRules.IsValidSha256(material))
+        {
+            return material;
+        }
+
+        return audioSha256;
     }
 
     private static string Invariant(ulong value) =>
