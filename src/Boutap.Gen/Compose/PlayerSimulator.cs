@@ -64,6 +64,21 @@ public sealed record SimulationReport(
 /// <summary>Simulation d'un joueur sur une partition.</summary>
 public static class PlayerSimulator
 {
+    /// <summary>
+    /// Fenetre dans laquelle deux notes comptent comme un seul geste.
+    /// </summary>
+    /// <remarks>
+    /// Un accord, c'est plusieurs touches pressees au meme instant. Le simulateur
+    /// les voyait comme des notes successives separees de zero seconde : la
+    /// deuxieme et la troisieme d'un accord de trois touches etaient donc
+    /// toujours declarees inatteignables, et le generateur ne produisait aucun
+    /// accord — soixante et onze notes sur cent quatre, sur le morceau de
+    /// demonstration. La fenetre est large devant l'imprecision d'arrondi et
+    /// etroite devant le plus rapide des motifs : a deux cents temps par minute,
+    /// une double-croche dure encore soixante-quinze millisecondes.
+    /// </remarks>
+    private const double GestureWindowSeconds = 0.010;
+
     /// <summary>Joue la partition et retire ce qu'aucun joueur moyen n'atteindrait.</summary>
     /// <param name="notes">Les notes, triees par instant croissant.</param>
     /// <param name="level">Le niveau, qui fixe le temps de reaction.</param>
@@ -74,6 +89,12 @@ public static class PlayerSimulator
     /// ne ressemblent plus a rien : le joueur entendrait le morceau et verrait
     /// un motif etranger. Une note en trop est un defaut visible, un motif
     /// deplace est un mensonge.
+    /// <para>
+    /// L'unite n'est pas la note, c'est le geste : les notes qui tombent dans la
+    /// meme fenetre se pressent ensemble, et c'est la main entiere qui se deplace
+    /// d'un geste a l'autre. Comparer note a note confondait « appuyer sur trois
+    /// touches en meme temps » et « appuyer sur trois touches a la suite ».
+    /// </para>
     /// </remarks>
     public static SimulationReport Simulate(
         IReadOnlyList<Note> notes,
@@ -85,32 +106,206 @@ public static class PlayerSimulator
 
         List<Note> reachable = new(notes.Count);
         List<UnreachableNote> unreachable = [];
-        Note? previous = null;
 
-        for (int index = 0; index < notes.Count; index++)
+        // Les tenues encore enfoncees, et ce que chaque main pressait au dernier
+        // geste qu'elle a tenu. Une main absente d'un geste repart du repos.
+        List<(int Grid, double End)> activeHolds = [];
+        List<int> previousLeft = [];
+        List<int> previousRight = [];
+        double previousTime = 0;
+        bool hasPrevious = false;
+        int index = 0;
+
+        while (index < notes.Count)
         {
-            Note note = notes[index];
-            if (previous is null)
+            double start = notes[index].Time;
+            List<int> indices = [];
+            while (index < notes.Count && notes[index].Time - start <= GestureWindowSeconds)
             {
-                reachable.Add(note);
-                previous = note;
-                continue;
+                indices.Add(index);
+                index++;
             }
 
-            double available = note.Time - previous.Time;
-            bool newPhrase = available > settings.ReactionSeconds;
-            double required = Transition(previous, note, settings) + (newPhrase ? settings.ReactionSeconds : 0);
-            if (available + 1e-9 < required)
+            List<int> left = [];
+            List<int> right = [];
+            bool wheel = false;
+            foreach (int noteIndex in indices)
             {
-                unreachable.Add(new UnreachableNote(index, note.Time, required, available));
-                continue;
+                Note note = notes[noteIndex];
+                int grid = GridIndex(note.Key);
+                if (grid < 0)
+                {
+                    // Une touche hors grille est un volant, ou rien du tout.
+                    if (note.Key.HasValue)
+                    {
+                        wheel = true;
+                    }
+
+                    continue;
+                }
+
+                (Hand(grid) == 0 ? left : right).Add(grid);
             }
 
-            reachable.Add(note);
-            previous = note;
+            // Une tenue terminee avant ce geste ne compte plus comme enfoncee.
+            for (int held = activeHolds.Count - 1; held >= 0; held--)
+            {
+                if (activeHolds[held].End < start)
+                {
+                    activeHolds.RemoveAt(held);
+                }
+            }
+
+            bool IsHeld(int grid)
+            {
+                foreach ((int heldGrid, _) in activeHolds)
+                {
+                    if (heldGrid == grid)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            double required = Math.Max(
+                Math.Max(
+                    HandCost(left, previousLeft, IsHeld, settings),
+                    HandCost(right, previousRight, IsHeld, settings)),
+                wheel ? settings.OtherHandBaseSeconds : 0);
+
+            if (hasPrevious)
+            {
+                double available = start - previousTime;
+                bool newPhrase = available > settings.ReactionSeconds;
+                required += newPhrase ? settings.ReactionSeconds : 0;
+
+                if (available + 1e-9 < required)
+                {
+                    foreach (int noteIndex in indices)
+                    {
+                        unreachable.Add(
+                            new UnreachableNote(noteIndex, notes[noteIndex].Time, required, available));
+                    }
+
+                    // Un geste rate ne devient pas la reference du suivant.
+                    continue;
+                }
+            }
+
+            foreach (int noteIndex in indices)
+            {
+                reachable.Add(notes[noteIndex]);
+            }
+
+            foreach (int noteIndex in indices)
+            {
+                Note note = notes[noteIndex];
+                if (note.IsHold)
+                {
+                    int grid = GridIndex(note.Key);
+                    if (grid >= 0 && note.EndTime > note.Time)
+                    {
+                        activeHolds.Add((grid, note.EndTime));
+                    }
+                }
+            }
+
+            previousLeft = left;
+            previousRight = right;
+            previousTime = start;
+            hasPrevious = true;
         }
 
-        return new SimulationReport(new ReadOnlyCollection<Note>(reachable), new ReadOnlyCollection<UnreachableNote>(unreachable));
+        return new SimulationReport(
+            new ReadOnlyCollection<Note>(reachable),
+            new ReadOnlyCollection<UnreachableNote>(unreachable));
+    }
+
+    /// <summary>
+    /// Ce qu'une main doit faire pour tenir un geste : se placer sur les touches
+    /// pressees ensemble, puis venir de la ou elle etait.
+    /// </summary>
+    /// <param name="keys">Les touches de ce geste qui reviennent a cette main.</param>
+    /// <param name="previous">Ce que cette main pressait au geste precedemment tenu.</param>
+    /// <param name="isHeld">Dit si une touche est deja enfoncee par une tenue.</param>
+    /// <param name="options">Les temps du joueur simule.</param>
+    /// <returns>Le cout, en secondes.</returns>
+    private static double HandCost(
+        List<int> keys,
+        List<int> previous,
+        Func<int, bool> isHeld,
+        PlayerSimulatorOptions settings)
+    {
+        if (keys.Count == 0)
+        {
+            return 0;
+        }
+
+        // Se placer : deux touches voisines se pressent avec deux doigts, un
+        // ecart de deux cases oblige la main a s'ouvrir.
+        double placement = settings.SameHandStepSeconds * Span(keys);
+
+        if (previous.Count == 0)
+        {
+            // La main etait au repos : elle doit se reveiller, ce qui coute plus
+            // qu'un pas.
+            return settings.OtherHandBaseSeconds + placement;
+        }
+
+        // On part de la touche precedente qui arrange le mieux, et on paye la
+        // plus mauvaise touche du geste : la main se place une seule fois.
+        int best = int.MaxValue;
+        foreach (int from in previous)
+        {
+            int worst = 0;
+            foreach (int to in keys)
+            {
+                worst = Math.Max(worst, isHeld(to) ? 0 : MoveSteps(from, to));
+            }
+
+            best = Math.Min(best, worst);
+        }
+
+        return (settings.SameHandStepSeconds * best) + placement;
+    }
+
+    /// <summary>Nombre de pas pour aller d'une touche a l'autre.</summary>
+    /// <param name="from">Touche de depart.</param>
+    /// <param name="to">Touche d'arrivee.</param>
+    /// <returns>Le nombre de pas.</returns>
+    /// <remarks>
+    /// Une touche vers elle-meme n'est pas gratuite : il faut lever le doigt
+    /// avant de le reposer. Une touche deja enfoncee par une tenue l'est, et
+    /// c'est <see cref="HandCost"/> qui le sait, pas cette fonction.
+    /// </remarks>
+    private static int MoveSteps(int from, int to)
+    {
+        int distance = ChromaFold.Distance(from, to);
+        return distance == 0 ? 1 : distance;
+    }
+
+    /// <summary>L'ecart maximal entre deux touches pressees ensemble par une main.</summary>
+    /// <param name="keys">Les touches de la main, dans ce geste.</param>
+    /// <returns>L'ecart, en pas.</returns>
+    private static int Span(List<int> keys)
+    {
+        if (keys.Count <= 1)
+        {
+            return 0;
+        }
+
+        int span = 0;
+        for (int a = 0; a < keys.Count; a++)
+        {
+            for (int b = a + 1; b < keys.Count; b++)
+            {
+                span = Math.Max(span, ChromaFold.Distance(keys[a], keys[b]));
+            }
+        }
+
+        return span;
     }
 
     /// <summary>Le cout de passage d'une note a l'autre.</summary>

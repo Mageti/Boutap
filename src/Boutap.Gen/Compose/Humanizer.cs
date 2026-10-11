@@ -73,33 +73,62 @@ public static class Humanizer
         double amplitude = settings.JitterBeats * beatSeconds / Subdivisions;
         double subCase = beatSeconds / Subdivisions;
 
+        // Le jitter se tire par GESTE, pas par note. Un accord est plusieurs
+        // notes au même instant, et c'est un seul évènement musical : tirer
+        // chaque note séparément faisait bouger les doigts d'un même accord à
+        // des vitesses différentes, et surtout inversait leur ordre dans le
+        // fichier — ce que le validateur refuse (notes-unsorted). Le défaut
+        // restait invisible tant que le simulateur jugeait les accords
+        // inatteignables ; dès qu'il les laisse passer, il éclate.
         List<Note> result = new(notes.Count);
-        for (int index = 0; index < notes.Count; index++)
+        int index = 0;
+        while (index < notes.Count)
         {
-            Note note = notes[index];
+            double onset = notes[index].Time;
             double jitter = (random.NextDouble() - 0.5) * amplitude;
-            double time = note.Time + jitter;
 
-            if (random.NextDouble() < settings.SyncopeProbability)
+            // Une syncope avance le geste d'une sous-case. Elle ne recule
+            // jamais : un retard éviterait le geste suivant, et c'est
+            // l'inverse de ce qu'une syncope fait en musique.
+            double shift = random.NextDouble() < settings.SyncopeProbability ? subCase : 0;
+
+            int end = index;
+            while (end < notes.Count && notes[end].Time == onset)
             {
-                // Une syncope avance la note d'une sous-case. Elle ne recule
-                // jamais : un retard eviterait la note suivante, et c'est
-                // l'inverse de ce qu'une syncope fait en musique.
-                time += subCase;
+                end++;
             }
 
-            double? duration = note.Duration;
-            if (duration is > 0)
+            for (int i = index; i < end; i++)
             {
-                double factor = settings.HoldMinimumFactor
-                    + (random.NextDouble() * (settings.HoldMaximumFactor - settings.HoldMinimumFactor));
-                duration = duration.Value * factor;
+                Note note = notes[i];
+
+                // La durée d'un tenu varie, elle, d'une note à l'autre : deux
+                // tenues commencées ensemble ne finissent pas ensemble, et
+                // c'est ce qui fait qu'on les sent différentes au doigt.
+                double? duration = note.Duration;
+                if (duration is > 0)
+                {
+                    double factor = settings.HoldMinimumFactor
+                        + (random.NextDouble() * (settings.HoldMaximumFactor - settings.HoldMinimumFactor));
+                    duration = duration.Value * factor;
+                }
+
+                result.Add(note with { Time = note.Time + jitter + shift, Duration = duration });
             }
 
-            result.Add(note with { Time = time, Duration = duration });
+            index = end;
         }
 
-        return new ReadOnlyCollection<Note>(result);
+        // Le tri de sortie n'est pas une précaution de principe : le jitter
+        // et la syncope peuvent faire croiser deux gestes très rapprochés
+        // (moins d'une sous-case d'écart), et le contrat de Humanize est de
+        // rendre une partition triée. Le Nettoyeur et la chronologie du jeu
+        // s'appuient tous les deux sur cette hypothèse.
+        return new ReadOnlyCollection<Note>(
+            result
+                .OrderBy(n => n.Time)
+                .ThenBy(n => n.Key.ToString(), StringComparer.Ordinal)
+                .ToList());
     }
 }
 
