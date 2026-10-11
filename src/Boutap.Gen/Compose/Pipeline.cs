@@ -385,7 +385,10 @@ public static class Pipeline
             string.Empty,
         };
 
-        lines.Add($"Tempo mesure : {result.Track.Beats.TempoBpm:0.000} BPM " +
+        lines.Add($"Tempo mesure : {TempoRounding.Display(result.Track.Beats.TempoBpm):0} BPM " +
+            (TempoRounding.IsRounded(result.Track.Beats.TempoBpm)
+                ? $"(mesure : {result.Track.Beats.TempoBpm:0.###} BPM, ramenee a l'entier) "
+                : string.Empty) +
             $"(confiance {result.Track.Beats.Confidence:0.000}, " +
             $"dans la tolerance de l'a priori : {(result.Track.Beats.WithinTolerance ? "oui" : "non")})");
         lines.Add(result.Track.Key is null

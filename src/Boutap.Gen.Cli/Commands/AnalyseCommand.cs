@@ -57,7 +57,11 @@ internal static class AnalyseCommand
         output.WriteLine($"Empreinte : {audio.CanonicalSha256Hex}");
         output.WriteLine($"Gapless   : {WavGapless.Describe(audio.Gapless)}");
         output.WriteLine(string.Empty);
-        output.WriteLine($"Tempo     : {beats.TempoBpm:0.00} BPM ({beats.Confidence:P0} de confiance, {beats.BeatsSeconds.Count} battements)");
+        output.WriteLine($"Tempo     : {TempoRounding.Display(beats.TempoBpm):0} BPM "
+            + (TempoRounding.IsRounded(beats.TempoBpm)
+                ? $"(mesure : {beats.TempoBpm:0.###} BPM, ramenee a l'entier) "
+                : string.Empty)
+            + $"({beats.Confidence:P0} de confiance, {beats.BeatsSeconds.Count} battements)");
 
         if (!beats.WithinTolerance)
         {
