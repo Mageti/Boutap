@@ -8,9 +8,12 @@
 **Un jeu de rythme à neuf touches et deux volants. Tu y mets ta musique, il en sort
 une partition jouable.**
 
-> **Statut : V0.1 en construction.** Le format `.btp`, l'outillage en ligne de commande
-> et la coque du jeu existent et sont testés ; le générateur et la lecture réelle
-> des notes ne sont pas encore écrits. Toute la conception est dans le wiki :
+> **Statut : V0.1 en construction.** Le format `.btp`, l'outillage en ligne de commande,
+> le générateur `boutap-gen` et **la coque Godot** existent : on peut charger un pack,
+> le voir défiler, le jouer au clavier et obtenir un score. Ne sont pas écrits :
+> le **décodage** de tout autre format que le WAV, que ce README promet, et
+> `bench-latency`, qui ne fabrique pas de chiffre tant que la latence ne se mesure
+> pas dans la coque. Toute la conception est dans le wiki :
 > **[wiki.mageti.fr/idees/boutap/](https://wiki.mageti.fr/idees/boutap/)**
 >
 > Ce qui est fait, et ce qui ne l'est pas, est écrit noir sur blanc dans le

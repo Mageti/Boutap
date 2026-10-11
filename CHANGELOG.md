@@ -18,6 +18,52 @@ le préfixe `v` n'est pas utilisé.
 
 ### Ajouté
 
+- **Le cœur de partie est jouable et testable sans Godot** (`Boutap.Game` /
+  `Session/`). `GameSession` enchaîne la frise (`ChartTimeline`), l'arbitrage
+  (`HitResolver`), l'avancement (`HitLedger`), le score (`SessionStats`) et le
+  récit des coups (`SessionEvent`) : on lui donne des instants sur l'horloge
+  audio, elle rend des verdicts. Rien n'y lit l'heure du système ni un fichier,
+  donc une partie entière se rejoue dans un test, sans son, sans fenêtre et sans
+  carte graphique — et un chart généré peut être déclaré injouable avant d'être
+  livré.
+  - **L'aide au geste**, qui est le cœur de C1 : un coup porté sur une touche
+    voisine de celle visée compte quand même, reste signalé comme tel
+    (`Assisted`), et ne peut jamais prendre la note de la bonne touche. La
+    diagonale, en revanche, est une erreur de deux cases et n'est pas secourue :
+    au-delà, l'aide ne discriminerait plus rien.
+  - **Une tenue se juge à son relâchement**, comme un coup se juge à son
+    instant : le grade retenu est le plus mauvais des deux, et lâcher à 80 ms
+    de la fin visée tombe de parfait à excellent. Au-delà de la fenêtre, la note
+    devient manquée — elle quitte les coups comptés au lieu de faire descendre
+    un compteur sous zéro, ce qui aurait déplacé le dénominateur du score.
+  - **Le score ne dépend pas du nombre de notes** : 1 coup parfait sur 1 note et
+    5 coups parfaits sur 5 notes valent tous deux 1 000 000.
+  - **Aucune pénalité** : une note manquée compte zéro, elle ne retire rien
+    (`wiki: generateur.md` 7.1).
+  - `KeyMap` : la géométrie du pavé 3×3, et son voisinage — seul endroit du
+    projet où cette géométie existe.
+- **La coque Godot joue** (`game/src/`). Elle ne contient aucune règle de jeu :
+  elle ouvre un paquet, demande l'instant audible à `AudioClock`, le donne à
+  `GameSession`, et dessine ce qu'elle lui répond.
+  - `RhythmAudioSource` applique la recette de la documentation Godot pour les
+    jeux de rythme — `GetPlaybackPosition() + GetTimeSinceLastMix()
+    - GetOutputLatency()` — qui est la décision audio de ce journal. La latence
+    de sortie est lue une fois par trente images, parce que la documentation C#
+    prévient qu'elle est coûteuse, et une position qui reculerait est jetée.
+  - L'audio du paquet est décodé par Godot (`AudioStreamWav.LoadFromBuffer`) :
+    c'est la décision A0, et c'est aussi pourquoi Opus reste hors de portée.
+  - `ProfileKeys` traduit les codes de profil (style DOM) en touches Godot, et
+    lit `profiles/*.json` — jusque-là seul l'audit les ouvrait. Un jeu exporté
+    sans le dépôt retombe sur la disposition par défaut, duplication assumée
+    jusqu'à ce que les profils voyagent dans le paquet.
+  - `HitSounds` synthétise les clics de résultat en 16 bits, sans aucun asset
+    sonore dans le dépôt. `NoteField` dessine les onze couloirs dans un seul
+    `_Draw()` plutôt qu'un nœud par note : une cascade dépasse les mille notes.
+  - Rendu : notes qui tombent, socles qui s'allument, explosion de résultat au
+    point d'impact, combo, score, barre d'avancement, écran de fin avec la
+    dérive moyenne du geste. `F1`/`F2`/`F3` changent de niveau, `R` rejoue,
+    `Échap` quitte.
+
 - **Podman comme moteur de conteneurs**, pour les postes qui n'ont pas Docker.
   Les scripts de `scripts/` ne dépendent plus de `docker` en dur : ils résolvent
   le moteur présent dans le `PATH` — Docker d'abord, parce que c'est la voie
@@ -117,6 +163,12 @@ le préfixe `v` n'est pas utilisé.
 - **535 tests** d'unité au vert.
 
 ### Corrigé
+
+- **Le bandeau de statut du `README.md` annonçait le générateur comme non écrit.** Il
+  datait de S2 : il affirmait que « le générateur et la lecture réelle des notes ne sont
+  pas encore écrits », alors que S3 a livré `boutap-gen` et ses 535 tests. Il dit
+  maintenant ce qui manque vraiment : la coque ne lit ni pack ni son, et seul le WAV
+  entre dans le générateur.
 
 - **`make-fixtures.py --check` échouait sur un fichier qui n'est pas le sien.**
   `tests/data/goldens/analysis-golden.json`, produit par `tools/make-goldens.py`,
@@ -269,6 +321,22 @@ le préfixe `v` n'est pas utilisé.
 
 ### Décidé
 
+- **La sortie audio du jeu est celle de Godot ; miniaudio ne sert plus qu'au décodage en
+  ligne de commande.** L'ADR 0002 retenait miniaudio (CC0) comme backend unique de
+  décodage *et* de sortie. La partie décodage est inchangée — `boutap-gen` est un
+  exécutable autonome qui ne doit rien à Godot — mais la **sortie** revient au moteur.
+  `AudioStreamPlayer` donne la position de lecture, `AudioServer.GetTimeSinceLastMix()`
+  comble les trous entre deux mixages, `GetOutputLatency()` donne la latence
+  réellement obtenue : c'est la recette que la documentation Godot elle-même donne pour
+  les jeux de rythme. Conséquences : aucune bibliothèque native à compiler, aucune cible
+  d'export supplémentaire, et la latence devient une **grandeur mesurée** au lieu d'une
+  grandeur supposée. miniaudio reste la solution de réserve si `GetOutputLatency()`
+  dépassait le budget de la règle C7 sur une des plateformes visées — la décision se
+  rejouerait alors avec un chiffre. Noté au passage : Godot ne décode ni Opus ni
+  l'Ogg-Theora, donc le « mp3, ogg, opus, wav » du README reste un objectif, et
+  `audio/driver/output_latency` est épinglé à 15 ms dans `game/project.godot` pour
+  qu'un changement de défaut du moteur ne dévore pas le budget de C7 en silence. À
+  répercuter dans `wiki: adr/0002` et `wiki: spec.md` §7.5.
 - Pile : **Godot 4 (C#) + .NET 8** pour le jeu, le générateur et les outils.
   Le générateur ne dépend d'aucun Python chez l'utilisateur ; `librosa` sert
   uniquement d'oracle en recherche (`tools/probe/`, non distribué).

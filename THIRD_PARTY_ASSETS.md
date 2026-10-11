@@ -118,7 +118,7 @@ Ces éléments sont **livrés avec le binaire**. Voir `wiki: spec.md` §7.5 et �
 |---|---|---|---|
 | Godot Engine 4 | MIT | Moteur, rendu, entrées, export | Runtime embarqué dans l'export |
 | .NET 8 | MIT | Exécuteur | *self-contained* (runtime embarqué) |
-| miniaudio | CC0 / domaine public | Décodage + sortie audio | Vendorisé dans `third_party/miniaudio/` |
+| miniaudio | CC0 / domaine public | Décodage de l'audio **côté ligne de commande** (mp3, ogg, opus, wav), hors du jeu | **Réservé, pas encore vendorisé** — la sortie du jeu est celle de Godot (décision ci-dessous) |
 | Codes shaders Boutap | AGPL-3.0-or-later | Rendu du plateau, effets | Source du dépôt |
 
 ### 5.1 Dépendances de développement (non embarquées)

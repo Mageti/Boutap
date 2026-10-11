@@ -17,6 +17,17 @@ config/description="Jouer du rythme aux pieds et aux mains."
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.3", "C#", "Forward Plus")
 
+[audio]
+
+; Regle C7 : la latence de bout en bout doit tenir sous 25 ms. La valeur
+; reellement obtenue peut etre contrainte par l'hote, donc on epingle la
+; valeur DEMANDEE a sa valeur par defaut (15 ms) plutot que de la laisser
+; deriver avec une version du moteur, et on mesure ce qu'on obtient avec
+; AudioServer.GetOutputLatency() dans la coque. Baisser ce nombre reduit la
+; latence et augmente le risque de craquement : ce n'est pas un reglage a
+; toucher sans mesure.
+driver/output_latency=15
+
 [display]
 
 window/size/viewport_width=1280
