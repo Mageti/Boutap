@@ -164,6 +164,16 @@ le préfixe `v` n'est pas utilisé.
 
 ### Corrigé
 
+- **`analyse --json` et `analyse` ne disaient plus le même tempo.** La sortie texte
+  affiche l'entier quand la mesure en est proche — `120 BPM (mesure : 119.959 BPM,
+  ramenee a l'entier)` — alors que le JSON ne portait que la mesure. Le test qui
+  garde l'accord des deux sorties echouait donc sur `119.959 contre 120`, ce qui
+  n'est pas une contradiction : c'est une mesure et son affichage. Le JSON porte
+  desormais les deux memes faits sous deux champs, `tempo_bpm` (la mesure, telle
+  quelle) et `tempo_display_bpm` (l'entier affiche), et le test verifie que chaque
+  numero dit la meme chose des deux cotes et que l'arrondi n'a pas mange la mesure.
+  Le manifeste, lui, continue de garder la mesure brute : c'est elle qui rend la
+  generation reproductible.
 - **Le bandeau de statut du `README.md` annonçait le générateur comme non écrit.** Il
   datait de S2 : il affirmait que « le générateur et la lecture réelle des notes ne sont
   pas encore écrits », alors que S3 a livré `boutap-gen` et ses 535 tests. Il dit
@@ -320,6 +330,20 @@ le préfixe `v` n'est pas utilisé.
   reste identique octet pour octet.
 
 ### Décidé
+
+- **Le moteur passe de Godot 4.3 à 4.7.2.** 4.3 était figée depuis la S0, soit
+  quatre versions mineures de retard. Deux raisons de brancher : la 4.4 a introduit
+  `AudioStreamWav.load_from_buffer()` et le type `PackedByteArray`, ce qui supprime le
+  contournement manuel par `new AudioStreamWav { Data = bytes, … }`, et elle a ajouté
+  `AudioStreamMP3.load_from_file/buffer()` : le décodage MP3 devient natif à
+  l'exécution, sans miniaudio côté jeu. La surface utilisée par Boutap
+  (`AudioServer.GetMixRate/GetTimeSinceLastMix/GetOutputLatency`, dessin `Control`,
+  thèmes `Label`, `SetAnchorsPreset`, `OS`) n'a pas changé depuis 4.3 — vérifié en
+  compilant la coque contre `Godot.NET.Sdk` 4.7.2. Coût réel : trois sommes SHA512 et
+  le nom du dossier de gabarits, qui porte le patch (`4.7.2.stable.mono` et non
+  `4.7.stable.mono` — pour 4.3 le tag n'en avait pas, et l'erreur est facile). Noté
+  pour plus tard : ni Opus ni FLAC ne seront jamais décodés par Godot, même en 4.7 ;
+  miniaudio reste donc nécessaire côté CLI pour ces deux formats.
 
 - **La sortie audio du jeu est celle de Godot ; miniaudio ne sert plus qu'au décodage en
   ligne de commande.** L'ADR 0002 retenait miniaudio (CC0) comme backend unique de

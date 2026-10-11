@@ -466,10 +466,22 @@ public sealed class CliTests : IDisposable
         string texte = Invoke("analyse", wav).Out;
         JsonNode rapport = Report(Invoke("analyse", wav, "--json"));
 
-        double attendu = rapport["tempo_bpm"]!.GetValue<double>();
+        // Le texte annonce deux nombres — l'entier affiche et la mesure gardee
+        // telle quelle — et le JSON porte les deux memes faits sous deux
+        // champs. Les comparer croises ferait echouer un test qui passe :
+        // 119,959 contre 120 n'est pas une contradiction, c'est une mesure et
+        // son affichage. Le test verifie donc que chaque numero dit la meme
+        // chose des deux cotes, et que l'arrondi n'a pas mange la mesure.
+        double mesure = rapport["tempo_bpm"]!.GetValue<double>();
+        double affiche = rapport["tempo_display_bpm"]!.GetValue<double>();
+
+        Assert.Equal(affiche, TempoOf(texte), 3);
         Assert.True(
-            Math.Abs(attendu - TempoOf(texte)) < 0.005,
-            "Les deux sorties doivent dire le meme tempo : " + attendu + " contre " + TempoOf(texte));
+            Math.Abs(mesure - 120.0) < 1.0,
+            "La mesure brute doit rester lisible telle quelle : " + mesure);
+        Assert.True(
+            Math.Abs(affiche - Math.Round(mesure, MidpointRounding.AwayFromZero)) < 0.005,
+            "L'affichage doit etre l'entier de la mesure : " + affiche + " pour " + mesure);
     }
 
     [Fact]

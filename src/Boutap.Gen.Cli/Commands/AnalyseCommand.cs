@@ -132,6 +132,7 @@ internal static class AnalyseCommand
             ["audio_sha256"] = audio.CanonicalSha256Hex,
             ["gapless"] = GenJson.Gapless(audio.Gapless),
             ["tempo_bpm"] = GenJson.Round(beats.TempoBpm),
+            ["tempo_display_bpm"] = GenJson.Round(TempoRounding.Display(beats.TempoBpm)),
             ["tempo_confidence"] = GenJson.Round(beats.Confidence),
             ["tempo_within_tolerance"] = beats.WithinTolerance,
             ["beat_count"] = beats.BeatsSeconds.Count,

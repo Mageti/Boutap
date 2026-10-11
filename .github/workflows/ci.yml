@@ -37,17 +37,17 @@ permissions:
 
 env:
   DOTNET_VERSION: '8.0.x'
-  GODOT_VERSION: '4.3-stable'
+  GODOT_VERSION: '4.7.2-stable'
   # Un projet Godot C# exige le binaire MONO et les gabarits MONO. Le binaire
   # standard refuse de compiler, et les gabarits standard ne sont pas
   # installables dans une image mono : l'editeur announce alors « no export
   # template found ».
   #
   # Sommes de controle publiees par Godot dans SHA512-SUMS.txt pour la release
-  # 4.3-stable. Il n'existe pas de SHA256-SUMS.txt pour cette release.
-  GODOT_EDITOR_SHA512_LINUX: '33d0539bc368ff6f30b5f15d64ec893da8639bd607df83050b5df746c3d30da99238c26dd03a16d7fe31b3a3e58680aeb5545af8784d8ce01edeff07b061ac80'
-  GODOT_EDITOR_SHA512_WINDOWS: '6fc1c187d7047d6b0a89e5e4495a63eb70a88209b7f283048f3b3d84d64047bc3addd7cfcb9a67a74441faea19dd8c465456b917cd9c3fc07f2131ee832e6e1e'
-  GODOT_TEMPLATES_SHA512: '76796c1df810ecf351b48f303e5525100597be48043d3206bab7c44bd0bc576fb944b4b788619eb9848c31b4245ae0df6f3d665e63d4a083f6dae829919e8e8d'
+  # 4.7.2-stable. Il n'existe pas de SHA256-SUMS.txt pour cette release.
+  GODOT_EDITOR_SHA512_LINUX: '1855960b27ee3ef5e66e5e228cced69d55637b24334a7411162687dcd077d8f9f645348cdb8eae984bec8135d49ed855a1e3a16476786b8bce60774fd8402d13'
+  GODOT_EDITOR_SHA512_WINDOWS: '79229fd112b0c9cbeab82363a4ef7be18ea70f1caf86bf912789335b136fbe7e01db0053a33461438c5da1c680c17bbb10040bd09bedc51221cd4423d0367757'
+  GODOT_TEMPLATES_SHA512: 'bb5c41d72370ed743660361f6228006f808ab04ca33abdc545d740b044f3fe057f32ae8cb7873a1bc86ddcd82ae683b9f6dfdfe4179852f2c0f1acde2ff6bd5a'
   # Le dossier de travail des tests, isole pour ne pas salir le depot.
   TEST_TMP: ${{ github.workspace }}/.tmp-tests
 
@@ -193,16 +193,16 @@ jobs:
         run: |
           set -euo pipefail
           # « $GODOT_RELEASE-stable-stable » etait un 404 : la release
-          # s'appelle deja « 4.3-stable », le suffixe n'a pas a ete ajoute.
+          # s'appelle deja « 4.7.2-stable », le suffixe n'a pas a ete ajoute.
           base="https://github.com/godotengine/godot/releases/download/${GODOT_RELEASE}"
           if [ "${RUNNER_OS}" = "Linux" ]; then
             asset="Godot_v${GODOT_RELEASE}_mono_linux_x86_64.zip"
             expected="$GODOT_EDITOR_SHA512_LINUX"
-            templates_dir="${HOME}/.local/share/godot/export_templates/4.3.stable.mono"
+            templates_dir="${HOME}/.local/share/godot/export_templates/4.7.2.stable.mono"
           else
             asset="Godot_v${GODOT_RELEASE}_mono_win64.zip"
             expected="$GODOT_EDITOR_SHA512_WINDOWS"
-            templates_dir="${APPDATA}/Godot/export_templates/4.3.stable.mono"
+            templates_dir="${APPDATA}/Godot/export_templates/4.7.2.stable.mono"
           fi
 
           curl --fail --location --retry 3 -o "$HOME/editor.zip" "${base}/${asset}"

@@ -157,8 +157,8 @@ Si vous préférez compiler sur votre propre machine, il vous faut :
 | Outil | Version | Pourquoi |
 |---|---|---|
 | [.NET SDK](https://dotnet.microsoft.com/download) | 8.0.4xx | Constraint par `global.json`. |
-| [Godot](https://godotengine.org/download) **mono** | 4.3-stable | La version **mono**, pas la version standard : un projet Godot C# ne compile pas avec l'autre. |
-| Gabarits d'export Godot **mono** | 4.3.stable.mono | `Godot_v4.3-stable_mono_export_templates.tpz`. Sans eux, aucun export. |
+| [Godot](https://godotengine.org/download) **mono** | 4.7.2-stable | La version **mono**, pas la version standard : un projet Godot C# ne compile pas avec l'autre. |
+| Gabarits d'export Godot **mono** | 4.7.2.stable.mono | `Godot_v4.7.2-stable_mono_export_templates.tpz`. Sans eux, aucun export. |
 | Python | 3.11+ | Uniquement pour les vérifications et la fabrique de fixtures. |
 
 ```bash

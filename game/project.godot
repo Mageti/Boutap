@@ -2,7 +2,7 @@
 ;
 ; Ce fichier est la SEULE entree de Godot dans le depot. Il ne contient aucune
 ; logique : tout le comportement est dans src/*.cs, assemble par
-; Boutap.Shell.csproj. Godot 4.3 ecrit ce fichier avec des tabulations, et
+; Boutap.Shell.csproj. Godot 4.7 ecrit ce fichier avec des tabulations, et
 ; `.editorconfig` l'exige aussi : c'est la seule exception a la regle
 ; « pas de tabulation en debut de ligne » (voir scripts/check-format.sh).
 ;
@@ -15,7 +15,7 @@ config_version=5
 config/name="Boutap"
 config/description="Jouer du rythme aux pieds et aux mains."
 run/main_scene="res://scenes/Main.tscn"
-config/features=PackedStringArray("4.3", "C#", "Forward Plus")
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 
 [audio]
 

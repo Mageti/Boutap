@@ -17,19 +17,19 @@
 
 ARG DOTNET_SDK_TAG=8.0-bookworm
 ARG DOTNET_RUNTIME_TAG=8.0-bookworm-slim
-ARG GODOT_VERSION=4.3-stable
-ARG GODOT_TEMPLATE_VERSION=4.3.stable.mono
+ARG GODOT_VERSION=4.7.2-stable
+ARG GODOT_TEMPLATE_VERSION=4.7.2.stable.mono
 
 # Sommes de controle publiees par Godot dans SHA512-SUMS.txt, sur la release
-# 4.3-stable. Epinglees ici : un binaire d'editeur telecharge sans verification
+# 4.7.2-stable. Epinglees ici : un binaire d'editeur telecharge sans verification
 # dans une image de compilation n'est pas verifiable par la suite.
 #
 # L'editeur et les templates MONO sont obligatoires : un projet Godot C#
 # refuse de compiler avec le binaire standard.
-ARG GODOT_EDITOR_URL=https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_mono_linux_x86_64.zip
-ARG GODOT_EDITOR_SHA512=33d0539bc368ff6f30b5f15d64ec893da8639bd607df83050b5df746c3d30da99238c26dd03a16d7fe31b3a3e58680aeb5545af8784d8ce01edeff07b061ac80
-ARG GODOT_TEMPLATES_URL=https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_mono_export_templates.tpz
-ARG GODOT_TEMPLATES_SHA512=76796c1df810ecf351b48f303e5525100597be48043d3206bab7c44bd0bc576fb944b4b788619eb9848c31b4245ae0df6f3d665e63d4a083f6dae829919e8e8d
+ARG GODOT_EDITOR_URL=https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_mono_linux_x86_64.zip
+ARG GODOT_EDITOR_SHA512=1855960b27ee3ef5e66e5e228cced69d55637b24334a7411162687dcd077d8f9f645348cdb8eae984bec8135d49ed855a1e3a16476786b8bce60774fd8402d13
+ARG GODOT_TEMPLATES_URL=https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_mono_export_templates.tpz
+ARG GODOT_TEMPLATES_SHA512=bb5c41d72370ed743660361f6228006f808ab04ca33abdc545d740b044f3fe057f32ae8cb7873a1bc86ddcd82ae683b9f6dfdfe4179852f2c0f1acde2ff6bd5a
 
 # --------------------------------------------------------------------------
 FROM ${DOTNET_SDK_TAG} AS dev

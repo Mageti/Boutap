@@ -14,7 +14,7 @@
   impose son propre SDK, et la racine du depot ne doit contenir qu'un seul
   couple .sln/.csproj pour que `dotnet build` sans argument fonctionne.
 -->
-<Project Sdk="Godot.NET.Sdk/4.3.0">
+<Project Sdk="Godot.NET.Sdk/4.7.2">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>Boutap.Shell</RootNamespace>
