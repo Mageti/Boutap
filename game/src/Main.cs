@@ -48,6 +48,8 @@ public partial class Main : Control
     private Label? _summaryLabel;
     private ColorRect? _progressFill;
     private ColorRect? _missFlash;
+    private SongList? _list;
+    private string _libraryDirectory = string.Empty;
 
     private IReadOnlyDictionary<Key, KeyBinding>? _bindings;
     private readonly Dictionary<Key, bool> _held = new();
@@ -75,12 +77,157 @@ public partial class Main : Control
         _effects = new AudioStreamPlayer { VolumeDb = -6 };
         AddChild(_effects);
 
-        if (!TryLoadPack())
+        _libraryDirectory = ProjectSettings.GlobalizePath("user://songs");
+        _list = new SongList { MouseFilter = MouseFilterEnum.Ignore };
+        _list.SongChosen += OnSongChosen;
+        _list.RefreshRequested += ReloadLibrary;
+        AddChild(_list);
+
+        ReloadLibrary();
+
+        // Un paquet donne sur la ligne de commande se joue tout de suite : c'est
+        // la voie du developpeur, et celle de « je veux juste essayer ce fichier ».
+        // Sinon la liste s'ouvre, et le joueur choisit.
+        string? immediate = FindPack();
+        if (immediate is not null && PlayPack(immediate))
         {
             return;
         }
 
+        ShowList();
+    }
+
+    /// <summary>Un morceau choisi dans la liste. Le resultat est jete :</summary>
+    /// <remarks>
+    /// Un signal Godot ne rend rien, et PlayPack est aussi appelee depuis la
+    /// ligne de commande, ou le retour compte. L'echec est deja affiche par
+    /// <see cref="Fail"/>, la liste reste donc derriere pour choisir autre
+    /// chose — c'est le comportement voulu, pas une erreur avalee.
+    /// </remarks>
+    private void OnSongChosen(string path)
+    {
+        PlayPack(path);
+    }
+
+    /// <summary>Relit le dossier des morceaux.</summary>
+    private void ReloadLibrary()
+    {
+        _list?.Reload(_libraryDirectory);
+        SeedFirstRun();
+    }
+
+    /// <summary>
+    /// Au premier lancement, la bibliotheque offre le morceau de demonstration.
+    /// </summary>
+    /// <remarks>
+    /// Une bibliotheque vide ne dit pas a quoi sert le jeu : on voit une liste
+    /// sans rien dedans, et rien n'explique ou mettre ses morceaux. La demo du
+    /// depot est donc copiee dans <c>user://songs/</c>, mais seulement quand on
+    /// tourne depuis le depot : une build livree n'en a pas et reste vide, sans
+    /// mentir sur ce qu'elle contient.
+    /// </remarks>
+    private void SeedFirstRun()
+    {
+        if (_list is null || _list.PlayableCount > 0)
+        {
+            return;
+        }
+
+        string? root = RepositoryRoot();
+        if (root is null)
+        {
+            return;
+        }
+
+        string source = Path.Combine(root, "tests", "data", "demo.btp");
+        if (!File.Exists(source))
+        {
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(_libraryDirectory);
+            File.Copy(source, Path.Combine(_libraryDirectory, "demo.btp"));
+        }
+        catch (IOException)
+        {
+            // Dossier en lecture seule, permissions, disque plein : la liste
+            // reste vide et le dira. Rien d'autre a tenter ici.
+            return;
+        }
+
+        _list.Reload(_libraryDirectory);
+    }
+
+    /// <summary>Affiche la liste et arrete le morceau en cours.</summary>
+    private void ShowList()
+    {
+        if (_music is not null)
+        {
+            _music.Stop();
+        }
+
+        _session = null;
+        _field?.Clear();
+        _list?.ShowList();
+        if (_titleLabel is not null)
+        {
+            _titleLabel.Text = "Boutap";
+        }
+
+        if (_summaryLabel is not null)
+        {
+            _summaryLabel.Visible = false;
+        }
+
+        if (_missFlash is not null)
+        {
+            _missFlash.Visible = false;
+        }
+    }
+
+    /// <summary>Ouvre un paquet et demarre le niveau courant.</summary>
+    /// <returns>Vrai si le paquet a pu etre ouvert et joue.</returns>
+    private bool PlayPack(string path)
+    {
+        _pack?.Dispose();
+        _pack = null;
+
+        LoadedPack? loaded = null;
+        try
+        {
+            loaded = PackReader.Read(path);
+        }
+        catch (PackFormatException error)
+        {
+            Fail($"Paquet illisible : {error.Message}");
+            return false;
+        }
+        catch (IOException error)
+        {
+            Fail($"Paquet inaccessible : {error.Message}");
+            return false;
+        }
+
+        _pack = loaded;
+        _packTitle = loaded.Manifest.Title is { Length: > 0 } title
+            ? title
+            : Path.GetFileNameWithoutExtension(path);
+
+        if (_list is not null)
+        {
+            _list.HideList();
+        }
+
+        if (!StartMusic())
+        {
+            Fail("L'audio du paquet n'a pas pu etre decode.");
+            return false;
+        }
+
         StartLevel(_level);
+        return true;
     }
 
     /// <inheritdoc/>
@@ -120,7 +267,17 @@ public partial class Main : Control
             switch (key.Keycode)
             {
                 case Key.Escape:
-                    GetTree().Quit();
+                    // Echap revient a la liste depuis une partie, et quitte
+                    // depuis la liste : sans ca, rejouer un autre morceau
+                    // imposait de relancer le jeu.
+                    if (_list is not null && _list.Visible)
+                    {
+                        GetTree().Quit();
+                        return;
+                    }
+
+                    ShowList();
+                    GetViewport().SetInputAsHandled();
                     return;
                 case Key.R:
                     StartLevel(_level);
@@ -220,57 +377,23 @@ public partial class Main : Control
         return null;
     }
 
-    private bool TryLoadPack()
-    {
-        string? path = FindPack();
-        if (path is null)
-        {
-            Fail("Aucun paquet trouve.\n\nAttendu : un argument, ou tests/data/demo.btp dans le depot.");
-            return false;
-        }
-
-        try
-        {
-            _pack = PackReader.Read(path);
-        }
-        catch (Exception error) when (error is IOException or PackFormatException or InvalidDataException)
-        {
-            Fail($"Paquet illisible : {path}\n\n{error.Message}");
-            return false;
-        }
-
-        if (_titleLabel is not null)
-        {
-            _packTitle = _pack.Manifest?.Title ?? path;
-            _titleLabel.Text = _packTitle;
-        }
-
-        return StartMusic();
-    }
-
     /// <summary>Cherche le paquet a jouer.</summary>
-    private string? FindPack()
+    /// <summary>
+    /// Cherche un paquet nomme explicitement sur la ligne de commande.
+    /// </summary>
+    /// <remarks>
+    /// Ce n'est PAS la que le morceau de demonstration est choisi : le trouver
+    /// ici ferait jouer la demo a chaque lancement, et la liste ne servirait a
+    /// rien. La demo alimente la bibliotheque au premier lancement, elle ne
+    /// s'impose pas.
+    /// </remarks>
+    private static string? FindPack()
     {
-        var candidates = new List<string>();
         foreach (string argument in OS.GetCmdlineUserArgs())
         {
             if (File.Exists(argument))
             {
-                candidates.Add(argument);
-            }
-        }
-
-        string? root = RepositoryRoot();
-        if (root is not null)
-        {
-            candidates.Add(Path.Combine(root, "tests", "data", "demo.btp"));
-        }
-
-        foreach (string candidate in candidates)
-        {
-            if (File.Exists(candidate))
-            {
-                return candidate;
+                return argument;
             }
         }
 

@@ -18,6 +18,20 @@ le préfixe `v` n'est pas utilisé.
 
 ### Ajouté
 
+- **Une liste de morceaux à laquelle on revient toujours** (`game/src/SongList.cs`,
+  `src/Boutap.Game/Library/PackLibrary.cs`). La coque n'exige plus qu'on lui passe
+  un pack en argument de lancement : elle ouvre `user://songs/`, dresse la liste
+  des `.btp` qui s'y trouvent et affiche pour chacun le titre, l'artiste, la durée,
+  le tempo mesuré, la tonalité et la note de chaque niveau. Échap ramène à la
+  liste depuis n'importe où, Entrée joue la sélection, Haut/Bas se déplacent. Au
+  premier lancement, un dossier vide reçoit automatiquement le morceau de
+  démonstration du dépôt — une build livrée n'embarque pas ce fichier et reste
+  honnêtement vide. `PackLibrary.Scan` trie par titre puis par chemin, et
+  `PackLibrary.Load` ne lève jamais : un pack corrompu apparaît dans la liste avec
+  son erreur à la place de ses niveaux, au lieu de faire disparaître tous les
+  autres. C'est la même règle que partout ailleurs dans ce projet : un fichier
+  illisible est une information, pas un plantage.
+
 - **Le cœur de partie est jouable et testable sans Godot** (`Boutap.Game` /
   `Session/`). `GameSession` enchaîne la frise (`ChartTimeline`), l'arbitrage
   (`HitResolver`), l'avancement (`HitLedger`), le score (`SessionStats`) et le

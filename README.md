@@ -9,11 +9,12 @@
 une partition jouable.**
 
 > **Statut : V0.1 en construction.** Le format `.btp`, l'outillage en ligne de commande,
-> le générateur `boutap-gen` et **la coque Godot** existent : on peut charger un pack,
-> le voir défiler, le jouer au clavier et obtenir un score. Ne sont pas écrits :
-> le **décodage** de tout autre format que le WAV, que ce README promet, et
-> `bench-latency`, qui ne fabrique pas de chiffre tant que la latence ne se mesure
-> pas dans la coque. Toute la conception est dans le wiki :
+> le générateur `boutap-gen` et **la coque Godot** existent : une liste de morceaux
+> s'ouvre au lancement, on en choisit un, on le voit défiler, on le joue au clavier
+> et on obtient un score. Ne sont pas écrits : le **décodage** de tout autre format
+> que le WAV, que ce README promet, et `bench-latency`, qui ne fabrique pas de
+> chiffre tant que la latence ne se mesure pas dans la coque. Toute la conception
+> est dans le wiki :
 > **[wiki.mageti.fr/idees/boutap/](https://wiki.mageti.fr/idees/boutap/)**
 >
 > Ce qui est fait, et ce qui ne l'est pas, est écrit noir sur blanc dans le
@@ -175,6 +176,45 @@ dotnet build game/Boutap.Shell.csproj --configuration Debug
 godot --headless --path game --export-release linux-x86_64 ../build/linux-x86_64
 ```
 
+### Où le jeu va chercher les morceaux
+
+La coque n'accepte plus de pack en argument de lancement : elle ouvre une
+**liste de morceaux**. Il n'y a rien à configurer, le dossier est celui que Godot
+réserve aux données de l'utilisateur :
+
+| Système | Dossier |
+|---|---|
+| Linux | `~/.local/share/godot/app_userdata/Boutap/songs/` |
+| Windows | `%APPDATA%\Godot\app_userdata\Boutap\songs\` |
+
+Au premier lancement, si le dossier est vide, la coque y copie le morceau de
+démonstration du dépôt (`tests/data/demo.btp`). Une build livrée n'embarque pas
+ce fichier : elle démarre simplement sur une liste vide, et un bouton
+« Ouvrir le dossier » mène directement au bon endroit.
+
+Pour jouer votre propre musique, il faut donc deux étapes, et la première est du
+ressort de la ligne de commande :
+
+```bash
+# 1. Fabriquer le pack : musique entrante, partition jouable sortante.
+dotnet run --project src/Boutap.Gen.Cli --configuration Release -- \
+  generate ~/Musique/mon-morceau.wav -o mon-morceau.btp
+
+# 2. Le deposer dans le dossier que le jeu surveille.
+cp mon-morceau.btp ~/.local/share/godot/app_userdata/Boutap/songs/
+```
+
+La génération prend environ **1,6 s par minute de musique** (mesuré), dont 94 %
+pour l'analyse : une piste de quatre minutes demande un peu moins de vingt
+secondes, une fois pour toutes. Le pack se rejoue ensuite instantanément, et il
+est reproductible octet pour octet — même musique, même graine, même fichier.
+
+> **Seul le WAV entre aujourd'hui.** `boutap-gen` lit le format PCM par
+> `WavDecoder`, et rien d'autre. Le MP3 passe depuis Godot 4.4, mais la promesse
+> « mp3 / ogg / opus / wav » n'est tenue que pour le WAV ; le décodage des autres
+> formats côté ligne de commande reste à faire, et c'est le rôle que l'ADR 0002
+> réservait à miniaudio.
+
 > Sous Windows, la voie la plus simple reste WSL 2 avec Docker ou Podman. La compilation
 > directe sous Windows est vérifiée par la CI, mais sans elle, un conteneur est
 > la seule garantie que « ça marche chez moi » veut dire la même chose partout.
@@ -191,7 +231,7 @@ seule, et aucune n'est un « au moins un test qui passe ».
 | `check-licenses.sh` | Un fichier source sans en-tête SPDX, ou sous la mauvaise licence. |
 | `check-format.sh` | CRLF, BOM, tabulations, espaces en fin de ligne, saut de ligne final manquant. |
 | `make-fixtures.py --check` | Un fichier binaire de test modifié à la main, ou un intrus déposé dans `tests/data`. |
-| `dotnet test` | 535 tests, dont les huit imposés par l'ADR 0005. |
+| `dotnet test` | 561 tests, dont les huit imposés par l'ADR 0005. |
 | `boutap audit` | Un pack, un profil ou un schéma non conforme. |
 
 ### Les caches
