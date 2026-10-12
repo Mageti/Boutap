@@ -173,33 +173,81 @@ public class PlayerSimulatorTests
     }
 
     [Theory]
-    [InlineData(0.250, false)]
-    [InlineData(0.300, true)]
-    public void Un_ecart_suffisant_ne_suffit_pas_sans_le_temps_de_reaction(double time, bool reachable)
+    [InlineData(0.250)]
+    [InlineData(0.300)]
+    public void Une_continuation_rythmique_ne_paie_pas_le_temps_de_reaction(double time)
     {
-        // Au-dela du temps de reaction, le joueur traite chaque note comme le
-        // debut d'une phrase et doit donc relire la partition avant de jouer.
-        // Un ecart de 250 ms ne laisse que 30 ms pour un deplacement de 55 ms.
+        // Deux notes voisines suivent la pulsation : la seconde n'ouvre pas une
+        // phrase, elle continue celle en cours. Le joueur lit la partition en
+        // continu, il ne la relit pas a chaque note, et un deplacement d'une
+        // touche voisine ne coute que ses 55 ms.
         SimulationReport report = PlayerSimulator.Simulate(
             [Note.Tap(0.0, KeyBinding.Grid(0)), Note.Tap(time, KeyBinding.Grid(1))],
             ChartLevel.Ronde);
 
-        Assert.Equal(reachable, report.Unreachable.Count == 0);
+        Assert.Equal(2, report.Reachable.Count);
+        Assert.Empty(report.Unreachable);
+    }
+
+    [Fact]
+    public void Un_geste_couteux_survit_a_une_continuation_rapide()
+    {
+        // La main ouvre un accord de deux touches a trois cases d'ecart, et elle
+        // vient de la premiere de ces deux touches : 165 ms de placement plus
+        // 165 ms de deplacement, soit 330 ms. Sur 400 ms de musique continue, le
+        // geste passe. C'est exactement ce que l'ancien modele refusait : il
+        // facturait aussi les 220 ms du temps de reaction, soit 550 ms pour
+        // 400 ms de musique. La cascade se retrouvait ramenee au meme nombre de
+        // notes que le berceau, et le simulateur ne servait plus a rien.
+        SimulationReport report = PlayerSimulator.Simulate(
+            [Note.Tap(0.0, KeyBinding.Grid(0)), Note.Tap(0.400, KeyBinding.Grid(0)), Note.Tap(0.400, KeyBinding.Grid(5))],
+            ChartLevel.Ronde);
+
+        Assert.Equal(3, report.Reachable.Count);
+        Assert.Empty(report.Unreachable);
+    }
+
+    [Fact]
+    public void Un_vrai_silence_fait_relire_la_partition()
+    {
+        // Meme geste, meme main, mais un silence de 500 ms devant : la phrase
+        // s'arrete, et le joueur doit se remettre dans le morceau avant de
+        // jouer. Le temps de reaction s'ajoute donc cette fois, et 330 ms de
+        // placement et de deplacement plus 220 ms de lecture font 550 ms la ou
+        // la musique n'en offre que 500.
+        SimulationReport report = PlayerSimulator.Simulate(
+            [Note.Tap(0.0, KeyBinding.Grid(0)), Note.Tap(0.500, KeyBinding.Grid(0)), Note.Tap(0.500, KeyBinding.Grid(5))],
+            ChartLevel.Ronde);
+
+        UnreachableNote[] dropped = [.. report.Unreachable];
+        Assert.Equal(2, dropped.Length);
+        Assert.All(dropped, note => Assert.Equal(0.550, note.RequiredSeconds, 9));
+        Assert.All(dropped, note => Assert.Equal(0.500, note.AvailableSeconds, 9));
     }
 
     [Fact]
     public void Le_niveau_berceau_ecarte_ce_que_l_adulte_tient_a_la_limite()
     {
-        // Contre-intuitif, et c'est la consequence directe du modele : le temps
-        // de reaction n'est paye que si l'ecart depasse le seuil de phrase.
-        // Ce seuil vaut 350 ms en berceau contre 220 ms ailleurs : a 300 ms,
-        // l'adulte paie sa reaction et l'enfant non, et l'enfant passe.
-        // A 400 ms, les deux paient, mais l'adulte a 125 ms de marge et
-        // l'enfant 45 ms pour un deplacement qui en coute 55.
-        Note[] notes = [Note.Tap(0.0, KeyBinding.Grid(0)), Note.Tap(0.400, KeyBinding.Grid(1))];
+        // Meme geste apres un silence de 550 ms, soit tout juste le seuil de
+        // phrase. L'adulte paie 330 ms de main et 220 ms de lecture : 550 ms sur
+        // 550 ms de musique, il tient le geste a la limite. L'enfant paie 50 ms
+        // de plus en temps de reaction, soit 680 ms, et abandonne. C'est la
+        // seule difference entre les deux niveaux, et elle ne se voit qu'apres
+        // un vrai silence — partout ailleurs, la lenteur de l'enfant n'a pas le
+        // temps de s'exprimer.
+        Note[] notes =
+        [
+            Note.Tap(0.0, KeyBinding.Grid(0)),
+            Note.Tap(0.550, KeyBinding.Grid(0)),
+            Note.Tap(0.550, KeyBinding.Grid(5)),
+        ];
 
         Assert.Empty(PlayerSimulator.Simulate(notes, ChartLevel.Ronde).Unreachable);
-        Assert.Single(PlayerSimulator.Simulate(notes, ChartLevel.Berceau).Unreachable);
+
+        UnreachableNote[] dropped = [.. PlayerSimulator.Simulate(notes, ChartLevel.Berceau).Unreachable];
+        Assert.Equal(2, dropped.Length);
+        Assert.All(dropped, note => Assert.Equal(0.680, note.RequiredSeconds, 9));
+        Assert.All(dropped, note => Assert.Equal(0.550, note.AvailableSeconds, 9));
     }
 }
 

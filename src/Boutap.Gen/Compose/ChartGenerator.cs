@@ -123,6 +123,28 @@ public static class ChartGenerator
     /// <summary>Nom inscrit dans <c>generator.name</c>.</summary>
     public const string Name = "boutap-gen";
 
+    /// <summary>Les temps du joueur simule, adaptes au tempo mesure du morceau.</summary>
+    /// <param name="track">Ce que l'analyse a etabli sur le morceau.</param>
+    /// <param name="options">Reglages et empreinte de l'audio.</param>
+    /// <remarks>
+    /// Une phrase s'arrete au silence d'un temps entier, et ce temps est mesure,
+    /// pas suppose : a 70 BPM il dure 857 ms, et une noire-volee qui suit le
+    /// temps precedent est encore de la continuation rythmique, alors qu'a
+    /// 200 BPM les memes 857 ms sont presque trois temps de silence et le joueur
+    /// a bel et bien quitte le morceau. Un silence fixe en secondes ne sait pas
+    /// faire cette difference. Le rapport de generation reprend cette methode
+    /// pour dire quel silence a ete applique.
+    /// </remarks>
+    public static PlayerSimulatorOptions PlayerOptionsFor(TrackProfile track, ChartGeneratorOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        ArgumentNullException.ThrowIfNull(options);
+
+        return track.Beats.TempoBpm > 0
+            ? options.Player with { PhraseBreakSeconds = 60.0 / track.Beats.TempoBpm }
+            : options.Player;
+    }
+
     /// <summary>Genere un niveau.</summary>
     /// <param name="track">Ce que l'analyse a etabli sur le morceau.</param>
     /// <param name="profile">Ce que ce niveau retient de la grille.</param>
@@ -171,7 +193,9 @@ public static class ChartGenerator
         drafted.Sort(CompareNotes);
 
         ReadabilityReport smoothed = ReadabilityFilter.Smooth(drafted);
-        SimulationReport played = PlayerSimulator.Simulate(smoothed.Notes, profile.Level, options.Player);
+
+        PlayerSimulatorOptions player = PlayerOptionsFor(track, options);
+        SimulationReport played = PlayerSimulator.Simulate(smoothed.Notes, profile.Level, player);
         IReadOnlyList<Note> humanized = Humanizer.Humanize(
             played.Reachable, options.SeedMaterialHex, options.Version, profile.Level, track.Beats.TempoBpm, options.Humanizer);
         IReadOnlyList<Note> cleaned = NoteCleaner.Clean(

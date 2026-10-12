@@ -358,6 +358,7 @@ public static class Pipeline
             ["prior_bpm"] = result.Options.BeatTracker.PriorBpm,
             ["beat_tightness"] = result.Options.BeatTracker.Tightness,
             ["reaction_seconds"] = result.Options.Player.ReactionSeconds,
+            ["phrase_break_seconds"] = ChartGenerator.PlayerOptionsFor(track, result.Options).PhraseBreakSeconds,
             ["jitter_beats"] = result.Options.Humanizer.JitterBeats,
             ["syncope_probability"] = result.Options.Humanizer.SyncopeProbability,
             ["tempo_within_tolerance"] = track.Beats.WithinTolerance,

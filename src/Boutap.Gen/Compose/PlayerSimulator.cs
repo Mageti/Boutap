@@ -19,11 +19,22 @@ namespace Boutap.Gen.Compose;
 /// <param name="SameHandStepSeconds">Cout d'un deplacement a la main, par touche franchie.</param>
 /// <param name="OtherHandBaseSeconds">Cout de depart d'un changement de main.</param>
 /// <param name="OtherHandStepSeconds">Cout supplementaire par touche franchie.</param>
+/// <param name="PhraseBreakSeconds">
+/// Silence apres lequel le joueur simule doit relire la partition. Un silence
+/// plus court n'est pas une phrase nouvelle : c'est une continuation rythmique.
+/// Ce nombre est le repli, quand le tempo du morceau n'est pas connu. Le
+/// generateur, lui, derive ce silence du tempo mesure : une phrase s'arrete au
+/// silence d'un temps entier, et non a un nombre de secondes choisi une fois
+/// pour toutes. La valeur de repli vaut un temps a cent vingt battements par
+/// minute, et elle suffit a garder le simulateur utilisable seul, dans un test
+/// ou hors chaine.
+/// </param>
 public sealed record PlayerSimulatorOptions(
     double ReactionSeconds = 0.220,
     double SameHandStepSeconds = 0.055,
     double OtherHandBaseSeconds = 0.090,
-    double OtherHandStepSeconds = 0.090)
+    double OtherHandStepSeconds = 0.090,
+    double PhraseBreakSeconds = 0.500)
 {
     /// <summary>Les temps d'un adulte jeune et reposé, comme la specification les donne.</summary>
     public static PlayerSimulatorOptions Adult { get; } = new PlayerSimulatorOptions();
@@ -94,6 +105,12 @@ public static class PlayerSimulator
     /// meme fenetre se pressent ensemble, et c'est la main entiere qui se deplace
     /// d'un geste a l'autre. Comparer note a note confondait « appuyer sur trois
     /// touches en meme temps » et « appuyer sur trois touches a la suite ».
+    /// </para>
+    /// <para>
+    /// Le temps de reaction, lui, se paie par phrase et non par geste : le
+    /// joueur lit la partition en continu, il ne la relit pas a chaque note. Il
+    /// la relit quand la musique s'est arretee — voir
+    /// <see cref="PlayerSimulatorOptions.PhraseBreakSeconds"/>.
     /// </para>
     /// </remarks>
     public static SimulationReport Simulate(
@@ -178,7 +195,22 @@ public static class PlayerSimulator
             if (hasPrevious)
             {
                 double available = start - previousTime;
-                bool newPhrase = available > settings.ReactionSeconds;
+
+                // Le temps de reaction se paie par PHRASE, pas par note. Un
+                // joueur ne relit pas la partition toutes les 312 ms : il la lit
+                // en continu pendant que la main execute. Le fait de le facturer
+                // a chaque ecart superieur au temps de reaction confondait deux
+                // choses — lire, et bouger — et les additionnait contre le meme
+                // intervalle. A cent vingt BPM, une noire-volee a 312 ms de la
+                // note precedente payait 220 ms de lecture plus 110 ms de
+                // placement : 330 ms de travail pour 312 ms de musique, donc
+                // rien du tout. La cascade etait entierement supprimee et les
+                // trois niveaux rendaient le meme nombre de notes.
+                //
+                // La phrase s'arrete au silence d'un temps de musique. En
+                // dessous, le joueur est dedans : il n'a pas a se remettre dans
+                // le morceau, il y est deja.
+                bool newPhrase = available >= settings.PhraseBreakSeconds;
                 required += newPhrase ? settings.ReactionSeconds : 0;
 
                 if (available + 1e-9 < required)

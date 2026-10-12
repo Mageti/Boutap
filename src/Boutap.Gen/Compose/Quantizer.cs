@@ -68,8 +68,17 @@ public static class Quantizer
             if (subdivision >= SubdivisionsPerBeat)
             {
                 // L'onset appartient au temps suivant, pas a la fin de celui-ci.
-                downbeat += beatSeconds;
-                subdivision -= SubdivisionsPerBeat;
+                // La correction peut depasser une fois le temps comple : un onset
+                // a plus d'un temps apres le dernier battement detecte (fin de
+                // morceau, battements manques) arrive avec deux temps d'avance.
+                // Le repli doit donc manger tous les temps de trop, pas un seul,
+                // sinon la subdivision reste superieure a 16 et ne correspond a
+                // aucune position de la grille.
+                while (subdivision >= SubdivisionsPerBeat)
+                {
+                    downbeat += beatSeconds;
+                    subdivision -= SubdivisionsPerBeat;
+                }
             }
 
             double seconds = Math.Max(0, downbeat + subdivision * stepSeconds);
@@ -79,11 +88,29 @@ public static class Quantizer
         return quantized;
     }
 
+    /// <summary>Index du dernier battement au plus tard apres cet instant.</summary>
+    /// <remarks>
+    /// Un onset appartient au temps qu'il traverse, c'est-a-dire au dernier
+    /// battement detecte qui le precede. La version precedente tolérait un
+    /// demi-temps d'avance (`time >= beats[i] - beatSeconds / 2`), ce qui
+    /// rattachait l'onset au battement SUIVANT. Le recalage de phase
+    /// (`downbeat = beatStart - phase * stepSeconds`) ramenait alors l'offset
+    /// a une ou zero subdivisions : tout le morceau atterrissait sur la
+    /// subdivision 0.
+    /// <para>
+    /// La consequence n'etait pas cosmetique. Les trois niveaux se differencient
+    /// par le nombre de subdivisions qu'ils jouent, via
+    /// `subdivision % step == 0`. Si tout est sur la subdivision 0, les trois
+    /// profils gardent exactement les memes onsets : berceau, ronde et cascade
+    /// devenaient le meme morceau avec un habillage different, et la difficulte
+    /// ne differencait plus rien.
+    /// </para>
+    /// </remarks>
     private static int BeatAt(double time, IReadOnlyList<double> beats, double beatSeconds)
     {
         for (int i = beats.Count - 1; i >= 0; i--)
         {
-            if (time >= beats[i] - beatSeconds / 2.0)
+            if (time >= beats[i])
             {
                 return i;
             }

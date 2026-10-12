@@ -178,6 +178,33 @@ le préfixe `v` n'est pas utilisé.
 
 ### Corrigé
 
+- **Le simulateur de joueur facturait le temps de reaction a chaque note, et
+  aplatissait les trois niveaux.** Il traitait tout ecart superieur au temps de
+  reaction comme le debut d'une phrase nouvelle. A cent vingt BPM, une
+  noire-volee qui suit le temps precedent est a 312 ms de la note d'avant :
+  elle payait 220 ms de lecture plus 110 ms de placement d'accord, soit 330 ms
+  de travail pour 312 ms de musique, et disparaissait. Le niveau CASCADE
+  retombait au meme compte que le BERCEAU — trente-quatre notes partout, douze
+  instants — et le parametre de difficulte ne discriminait plus rien.
+  La reaction se paie desormais **par phrase**, pas par geste : un silence plus
+  court qu'un temps de musique n'est pas une phrase nouvelle, c'est une
+  continuation rythmique, et le joueur lit la partition en continu pendant que
+  sa main execute. Le silence de phrase suit le tempo mesure — 500 ms a cent
+  vingt BPM, 857 ms a soixante-dix, 300 ms a deux cents — et le manifeste porte
+  la valeur reellement appliquee sous `generator.params.phrase_break_seconds`.
+  Deux tests de `PlayerSimulatorTests` encadraient l'ancien modele et
+  l'affirmaient noir sur blanc ; ils sont reecrits pour dire le nouveau, et deux
+  autres sont ajoutes : l'un montre qu'un geste couteux survit a une
+  continuation rapide, l'autre qu'un vrai silence fait bien relire la partition.
+  `Les_trois_niveaux_vont_du_plus_simple_au_plus_dense`, rouge depuis que
+  `BeatAt` ancre un onset sur le temps qu'il traverse, repasse au vert.
+  **La mesure reste modeste et il faut le dire** : sur le signal synthetique qui
+  a revele le defaut, la cascade passe de trente-quatre a trente-sept notes,
+  parce que l'accord de ce signal porte deux touches en diagonale et coute a lui
+  seul 220 ms. Ce que la correction garantit, c'est que le temps de lecture
+  n'est plus facture la ou il n'est pas du ; ce n'est pas que la densite de la
+  cascade va tripler.
+
 - **`analyse --json` et `analyse` ne disaient plus le même tempo.** La sortie texte
   affiche l'entier quand la mesure en est proche — `120 BPM (mesure : 119.959 BPM,
   ramenee a l'entier)` — alors que le JSON ne portait que la mesure. Le test qui
